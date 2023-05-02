@@ -1,15 +1,25 @@
 [tool.poetry]
 name = "regenbib"
-version = "0.0.1"
+version = "0.0.2"
 description = "(Re-)generate tidy .bib files from online sources"
 authors = ["Joachim Neu <jneu@stanford.edu>"]
 license = "GPL-3.0-only"
 readme = "README.md"
+homepage = "https://github.com/joachimneu/regenbib"
+repository = "https://github.com/joachimneu/regenbib"
+documentation = "https://github.com/joachimneu/regenbib"
+keywords = ["latex", "bibtex", "biblatex"]
+
+
+[tool.poetry.scripts]
+regenbib = 'regenbib.cli_render:run'
+regenbib-import = 'regenbib.cli_import:run'
+
 
 [tool.poetry.dependencies]
 python = "^3.10"
 bibtex-dblp = "^0.5"
-marshmallow-dataclass = {version = "8.5.11", extras = ["enum", "union"]}
+marshmallow-dataclass = { version = "8.5.11", extras = ["enum", "union"] }
 arxiv = "^1.4.7"
 beautifulsoup4 = "^4.12.2"
 requests = "^2.29.0"
