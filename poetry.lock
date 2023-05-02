@@ -217,14 +217,14 @@ tests = ["pytest", "pytz", "simplejson"]
 
 [[package]]
 name = "marshmallow-dataclass"
-version = "8.5.11"
+version = "8.5.14"
 description = "Python library to convert dataclasses into marshmallow schemas."
 category = "main"
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "marshmallow_dataclass-8.5.11-py3-none-any.whl", hash = "sha256:d9dbce8d356a8dad2b80fecf15cac97f42a48397eefa594693874a2a6539ea84"},
-    {file = "marshmallow_dataclass-8.5.11.tar.gz", hash = "sha256:b7b0ee28fa9e88edd00db324762848d3182fe5dba82c3b897cb525c402ffd143"},
+    {file = "marshmallow_dataclass-8.5.14-py3-none-any.whl", hash = "sha256:73859c8963774b5aad6b23ff3dd8456c8463e7c96bf5076051e1656fd4e101d0"},
+    {file = "marshmallow_dataclass-8.5.14.tar.gz", hash = "sha256:233c414dd24a6d512bcdb6fb840076bf7a29b7daaaea40634f155a5933377d2e"},
 ]
 
 [package.dependencies]
@@ -232,16 +232,17 @@ marshmallow = [
     {version = ">=3.13.0,<4.0"},
     {version = ">=3.18.0,<4.0", optional = true, markers = "python_version >= \"3.7\""},
 ]
-typeguard = {version = "*", optional = true, markers = "extra == \"union\""}
-typing-inspect = ">=0.8.0"
+typeguard = {version = ">=2.4.1,<4.0.0", optional = true, markers = "extra == \"union\""}
+typing-extensions = {version = ">=4.2.0", markers = "python_version < \"3.11\" and python_version >= \"3.7\""}
+typing-inspect = ">=0.8.0,<1.0"
 
 [package.extras]
-dev = ["marshmallow (>=3.18.0,<4.0)", "marshmallow-enum", "pre-commit (>=2.17,<3.0)", "pytest (>=5.4)", "pytest-mypy-plugins (>=1.2.0)", "sphinx", "typeguard", "typing-extensions (>=3.7.2)"]
+dev = ["marshmallow (>=3.18.0,<4.0)", "marshmallow-enum", "pre-commit (>=2.17,<3.0)", "pytest (>=5.4)", "pytest-mypy-plugins (>=1.2.0)", "sphinx", "typeguard (>=2.4.1,<4.0.0)"]
 docs = ["sphinx"]
 enum = ["marshmallow (>=3.18.0,<4.0)", "marshmallow-enum"]
 lint = ["pre-commit (>=2.17,<3.0)"]
-tests = ["pytest (>=5.4)", "pytest-mypy-plugins (>=1.2.0)", "typing-extensions (>=3.7.2)"]
-union = ["typeguard"]
+tests = ["pytest (>=5.4)", "pytest-mypy-plugins (>=1.2.0)"]
+union = ["typeguard (>=2.4.1,<4.0.0)"]
 
 [[package]]
 name = "mypy-extensions"
@@ -472,4 +473,4 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "a6cedc10f50a7b8b51e192149359f05890224e17bcb375ff90f4e86b83f20c4b"
+content-hash = "f60147ee9ee9a71a55298068b3d984a9e7cddff5bd3b21e1b7a6730738fa9787"
