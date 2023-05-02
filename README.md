@@ -101,3 +101,12 @@ $ cat references.bib
     year = "2020"
 }
 ```
+
+
+## Supported Entry Types & Online Metadata Sources
+
+See entry types in `regenbib/store.py`:
+* dblp
+* arXiv
+* IACR ePrint
+* Raw `.bib` entry
