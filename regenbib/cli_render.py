@@ -1,18 +1,20 @@
 #! /usr/bin/env python3
 
+import argparse
 import bibtex_dblp.database
 from .store import Store
-import sys
 
 
 def run():
-    if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <YAML FILE> <BIB FILE>")
-        exit(1)
+    parser = argparse.ArgumentParser(
+        description='Render .bib bibliography file from references provided in .yaml file')
+    parser.add_argument('--yaml', metavar='YAML_FILE', type=str,
+                        default='references.yaml', help='File name of .yaml file')
+    parser.add_argument('--bib', metavar='BIB_FILE', type=str,
+                        default='references.bib', help='File name of .bib file')
+    args = parser.parse_args()
 
-    (YAML_FILE, BIB_FILE) = sys.argv[1:]
-
-    store = Store.load_or_empty(YAML_FILE)
+    store = Store.load_or_empty(args.yaml)
     bib = bibtex_dblp.database.parse_bibtex('')
 
     for entry in store.entries:
@@ -30,7 +32,7 @@ def run():
 
         bib.entries[entry.bibtexid] = entry_pybtex
 
-    bibtex_dblp.database.write_to_file(bib, BIB_FILE)
+    bibtex_dblp.database.write_to_file(bib, args.bib)
 
 
 if __name__ == '__main__':

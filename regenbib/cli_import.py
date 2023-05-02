@@ -1,12 +1,12 @@
 #! /usr/bin/env python3
 
-from .store import Store
+import argparse
+import re
 import bibtex_dblp.dblp_data
 import bibtex_dblp.dblp_api
 import bibtex_dblp.io
 import bibtex_dblp.database
-import sys
-import re
+from .store import Store
 
 
 def format_dblp_publication(pub: bibtex_dblp.dblp_data.DblpPublication):
@@ -45,7 +45,7 @@ def search_key_on_dblp(search_query, max_search_results=5):
 
 
 def import_dblp_free_search(bibtexid):
-    from store import DblpEntry
+    from .store import DblpEntry
 
     while True:
         search_query = bibtex_dblp.io.get_user_input(
@@ -65,7 +65,7 @@ def import_dblp_free_search(bibtexid):
 
 
 def import_dblp_search_title(bibtexid, entry_old):
-    from store import DblpEntry
+    from .store import DblpEntry
 
     search_query = entry_old.fields['title']
     (status, key) = search_key_on_dblp(search_query)
@@ -79,7 +79,7 @@ def import_dblp_search_title(bibtexid, entry_old):
 
 
 def import_dblp_search_authortitle(bibtexid, entry_old):
-    from store import DblpEntry
+    from .store import DblpEntry
 
     authors = ", ".join([str(author)
                         for author in entry_old.persons['author']])
@@ -95,13 +95,13 @@ def import_dblp_search_authortitle(bibtexid, entry_old):
 
 
 def import_current_raw_entry(bibtexid, entry_old):
-    from store import RawBibtexEntry
+    from .store import RawBibtexEntry
 
     return RawBibtexEntry.from_pybtex_entry(bibtexid, entry_old)
 
 
 def import_arxiv_manualid(bibtexid):
-    from store import ArxivEntry
+    from .store import ArxivEntry
 
     while True:
         manual = bibtex_dblp.io.get_user_input(
@@ -116,7 +116,7 @@ def import_arxiv_manualid(bibtexid):
 
 
 def import_eprint_manualid(bibtexid):
-    from store import EprintEntry
+    from .store import EprintEntry
 
     while True:
         manual = bibtex_dblp.io.get_user_input(
@@ -148,6 +148,16 @@ def attempt_import(methods):
 
 
 def run():
+    parser = argparse.ArgumentParser(
+        description='Import bibliography entries from  DBLP.')
+    parser.add_argument('--bib', metavar='BIB_FILE', type=str,
+                        default='references.bib', help='File name of .bib file')
+    parser.add_argument('--aux', metavar='AUX_FILE', type=str,
+                        default='_build/main.aux', help='File name of .aux file')
+    parser.add_argument('--yaml', metavar='YAML_FILE', type=str,
+                        default='references.yaml', help='File name of .yaml file')
+    args = parser.parse_args()
+
     METHODS_WITHOUT_OLDENTRY = [
         ('dblp-free-search', import_dblp_free_search),
         ('arxiv-manual-id', import_arxiv_manualid),
@@ -160,14 +170,8 @@ def run():
         ('dblp-search-authorstitle', import_dblp_search_authortitle),
     ]
 
-    if len(sys.argv) != 4:
-        print(f"Usage: {sys.argv[0]} <BIB FILE> <AUX FILE> <YAML FILE>")
-        exit(1)
-
-    (BIB_FILE, AUX_FILE, YAML_FILE) = sys.argv[1:]
-
     bibtexids_included = []
-    with open(AUX_FILE, 'r') as infile:
+    with open(args.aux, 'r') as infile:
         for l in infile.readlines():
             l = l.strip()
             matches = re.findall(r"\\abx@aux@cite\{0\}\{(.*?)\}", l)
@@ -177,9 +181,9 @@ def run():
                 if not m in bibtexids_included:
                     bibtexids_included.append(m)
 
-    store = Store.load_or_empty(YAML_FILE)
+    store = Store.load_or_empty(args.yaml)
 
-    bibtex_entries = bibtex_dblp.database.load_from_file(BIB_FILE)
+    bibtex_entries = bibtex_dblp.database.load_from_file(args.bib)
 
     for bibtexid in bibtexids_included:
         if bibtexid in store.bibtexids:
@@ -195,9 +199,9 @@ def run():
 
             if entry != None:
                 store.entries.append(entry)
-                store.dump(YAML_FILE)
+                store.dump(args.yaml)
 
-            store.dump(YAML_FILE)
+            store.dump(args.yaml)
 
         else:
             entry_old = bibtex_entries.entries[bibtexid]
@@ -210,9 +214,9 @@ def run():
 
             if entry != None:
                 store.entries.append(entry)
-                store.dump(YAML_FILE)
+                store.dump(args.yaml)
 
-            store.dump(YAML_FILE)
+            store.dump(args.yaml)
 
 
 if __name__ == '__main__':
