@@ -18,7 +18,7 @@ regenbib-import = 'regenbib.cli_import:run'
 
 [tool.poetry.dependencies]
 python = "^3.10"
-bibtex-dblp = "^0.5"
+bibtex-dblp = { git = "https://github.com/volkm/bibtex-dblp.git", rev = "65f3b473a78ef0499bc82a351e35bd4fc1a04af1" }
 marshmallow-dataclass = { version = "8.5.11", extras = ["enum", "union"] }
 arxiv = "^1.4.7"
 beautifulsoup4 = "^4.12.2"

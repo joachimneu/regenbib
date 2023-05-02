@@ -37,18 +37,23 @@ lxml = ["lxml"]
 [[package]]
 name = "bibtex-dblp"
 version = "0.5"
-description = "Create and revise bibtex entries from DBLP."
+description = ""
 category = "main"
 optional = false
 python-versions = ">=3"
-files = [
-    {file = "bibtex-dblp-0.5.tar.gz", hash = "sha256:c389f98b88904e77669cbc1c729eb76d0cc90cea90e615577bf89b613693b8f9"},
-    {file = "bibtex_dblp-0.5-py3-none-any.whl", hash = "sha256:d43df84272d049c0b4ef9d987d93d431297fcdd5efe15c8944b928634c32655d"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 pybtex = "*"
+pyperclip = "*"
 requests = "*"
+
+[package.source]
+type = "git"
+url = "https://github.com/volkm/bibtex-dblp.git"
+reference = "65f3b473a78ef0499bc82a351e35bd4fc1a04af1"
+resolved_reference = "65f3b473a78ef0499bc82a351e35bd4fc1a04af1"
 
 [[package]]
 name = "certifi"
@@ -283,6 +288,17 @@ six = "*"
 test = ["pytest"]
 
 [[package]]
+name = "pyperclip"
+version = "1.8.2"
+description = "A cross-platform clipboard module for Python. (Only handles plain text for now.)"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pyperclip-1.8.2.tar.gz", hash = "sha256:105254a8b04934f0bc84e9c24eb360a591aaf6535c9def5f29d92af107a9bf57"},
+]
+
+[[package]]
 name = "pyyaml"
 version = "6.0"
 description = "YAML parser and emitter for Python"
@@ -456,4 +472,4 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "01c0cb0777e970d6095c85718c63eb8c6d21985e90aea4c1b1e84b723e2a13b6"
+content-hash = "a6cedc10f50a7b8b51e192149359f05890224e17bcb375ff90f4e86b83f20c4b"
