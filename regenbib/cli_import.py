@@ -174,12 +174,23 @@ def run():
     with open(args.aux, 'r') as infile:
         for l in infile.readlines():
             l = l.strip()
+
+            # BibLaTeX
             matches = re.findall(r"\\abx@aux@cite\{0\}\{(.*?)\}", l)
             assert len(matches) <= 1
             if matches:
                 m = matches[0]
                 if not m in bibtexids_included:
                     bibtexids_included.append(m)
+
+            # BibTeX
+            matches = re.findall(r"\\citation\{(.*?)\}", l)
+            assert len(matches) <= 1
+            if matches:
+                for m in matches[0].split(','):
+                    m = m.strip()
+                    if not m in bibtexids_included:
+                        bibtexids_included.append(m)
 
     store = Store.load_or_empty(args.yaml)
 
