@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "regenbib"
-version = "0.0.4"
+version = "0.0.5"
 description = "(Re-)generate tidy .bib files from online sources"
 authors = ["Joachim Neu <jneu@stanford.edu>"]
 license = "GPL-3.0-only"
@@ -18,7 +18,7 @@ regenbib-import = 'regenbib.cli_import:run'
 
 [tool.poetry.dependencies]
 python = "^3.10"
-bibtex-dblp = { git = "https://github.com/volkm/bibtex-dblp.git", rev = "65f3b473a78ef0499bc82a351e35bd4fc1a04af1" }
+bibtex-dblp = "^0.9"
 marshmallow-dataclass = { version = "8.5.14", extras = ["enum", "union"] }
 arxiv = "^1.4.7"
 beautifulsoup4 = "^4.12.2"
