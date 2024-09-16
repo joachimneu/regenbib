@@ -2,7 +2,7 @@
 
 import argparse
 import re
-import pybtex.errors import set_strict_mode
+from pybtex.errors import set_strict_mode
 import bibtex_dblp.dblp_data
 import bibtex_dblp.dblp_api
 import bibtex_dblp.io
