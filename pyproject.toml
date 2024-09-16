@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "regenbib"
-version = "0.0.7"
+version = "0.0.8"
 description = "(Re-)generate tidy .bib files from online sources"
 authors = ["Joachim Neu <jneu@stanford.edu>"]
 license = "GPL-3.0-only"
