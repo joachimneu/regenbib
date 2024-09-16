@@ -7,6 +7,7 @@ import bibtex_dblp.database
 import arxiv
 import requests
 from bs4 import BeautifulSoup
+import hashlib
 
 
 @dataclass
@@ -26,6 +27,20 @@ class RawBibtexEntry:
         key = list(data.entries.keys())[0]
         return data.entries[key]
 
+    @property
+    def sortkey_source(self):
+        return self.__class__.__name__
+
+    @property
+    def sortkey_bibtexid(self):
+        return self.bibtexid
+
+    @property
+    def sortkey_contentid(self):
+        h = hashlib.sha256()
+        h.update(repr(self.rawbibtex).encode())
+        return (self.sortkey_source, h.hexdigest())
+
 
 @dataclass
 class DblpEntry:
@@ -39,6 +54,18 @@ class DblpEntry:
         assert len(data.entries) == 1
         key = list(data.entries.keys())[0]
         return data.entries[key]
+
+    @property
+    def sortkey_source(self):
+        return self.__class__.__name__
+
+    @property
+    def sortkey_bibtexid(self):
+        return self.bibtexid
+
+    @property
+    def sortkey_contentid(self):
+        return (self.sortkey_source, self.dblpid)
 
 
 @dataclass
@@ -94,6 +121,18 @@ class ArxivEntry:
         key = list(data.entries.keys())[0]
         return data.entries[key]
 
+    @property
+    def sortkey_source(self):
+        return self.__class__.__name__
+
+    @property
+    def sortkey_bibtexid(self):
+        return self.bibtexid
+
+    @property
+    def sortkey_contentid(self):
+        return (self.sortkey_source, "%sv%s" % (self.arxivid, self.version))
+
 
 @dataclass
 class EprintEntry:
@@ -121,6 +160,18 @@ class EprintEntry:
         assert len(data.entries) == 1
         key = list(data.entries.keys())[0]
         return data.entries[key]
+
+    @property
+    def sortkey_source(self):
+        return self.__class__.__name__
+
+    @property
+    def sortkey_bibtexid(self):
+        return self.bibtexid
+
+    @property
+    def sortkey_contentid(self):
+        return (self.sortkey_source, self.eprintid)
 
 
 @dataclass
