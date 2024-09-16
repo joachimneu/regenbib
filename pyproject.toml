@@ -23,6 +23,7 @@ marshmallow-dataclass = { version = "8.5.14", extras = ["enum", "union"] }
 arxiv = "^1.4.7"
 beautifulsoup4 = "^4.12.2"
 requests = "^2.29.0"
+setuptools = "^75.0.0"
 
 
 [build-system]
