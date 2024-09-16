@@ -204,3 +204,6 @@ class Store:
     def bibtexids(self):
         for e in self.entries:
             yield e.bibtexid
+
+    def sort(self, keyfn):
+        self.entries.sort(key=keyfn)
