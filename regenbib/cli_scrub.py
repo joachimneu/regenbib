@@ -9,9 +9,9 @@ def run():
         description='Perform maintenance on references provided in .yaml file')
     parser.add_argument('--yaml', metavar='YAML_FILE', type=str,
                         default='references.yaml', help='File name of .yaml file')
-    subparsers = parser.add_subparsers(dest='command')
+    subparsers = parser.add_subparsers(dest='command', required=True)
     subparser_sort = subparsers.add_parser('sort', help='Sort .yaml file')
-    subparser_sort.add_argument('--by', metavar='ORDER', type=str,
+    subparser_sort.add_argument('--by', metavar='ORDER', required=True, type=str,
                                 help='Sort order (non-empty combination of: S = source, B = bibtex-id, C = content-id)')
     args = parser.parse_args()
 
