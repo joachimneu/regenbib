@@ -9,9 +9,25 @@ import bibtex_dblp.database
 from .store import Store
 
 
+def default_render_entry_hook(entry, entry_pybtex):
+    if entry_pybtex.fields.get('series', '') == 'Lecture Notes in Computer Science':
+        entry_pybtex.fields['series'] = 'LNCS'
+
+    if entry_pybtex.fields.get('url', '').startswith('https://eprint.iacr.org/'):
+        entry_pybtex.fields['note'] = entry_pybtex.fields.get('note', '')
+        del entry_pybtex.fields['note']
+
+    return (entry, entry_pybtex)
+
+cfgpy_defaults = {
+    'render_entry_hook': default_render_entry_hook,
+}
+
 def load_cfgpy(cfgpy_filename):
+    cfgpy_dict = {}
+
     if not os.path.exists(cfgpy_filename):
-        return {}
+        return copy.deepcopy(cfgpy_defaults)
 
     original_dont_write_bytecode = sys.dont_write_bytecode
     sys.dont_write_bytecode = True
@@ -22,18 +38,10 @@ def load_cfgpy(cfgpy_filename):
 
     sys.dont_write_bytecode = original_dont_write_bytecode
 
-    return cfgpy
+    for k in cfgpy_defaults.keys():
+        cfgpy_dict[k] = getattr(cfgpy, k, cfgpy_defaults[k])
 
-
-def default_render_entry_hook(entry, entry_pybtex):
-    if entry_pybtex.fields.get('series', '') == 'Lecture Notes in Computer Science':
-        entry_pybtex.fields['series'] = 'LNCS'
-
-    if entry_pybtex.fields.get('url', '').startswith('https://eprint.iacr.org/'):
-        entry_pybtex.fields['note'] = entry_pybtex.fields.get('note', '')
-        del entry_pybtex.fields['note']
-
-    return (entry, entry_pybtex)
+    return cfgpy_dict
 
 
 def run():
@@ -51,12 +59,10 @@ def run():
     bib = bibtex_dblp.database.parse_bibtex('')
     cfgpy = load_cfgpy(args.cfgpy)
 
-    render_entry_hook = cfgpy.get('render_entry_hook', default_render_entry_hook)
-
     for entry in store.entries:
         print(entry)
         entry_pybtex = entry.render_pybtex_entry()
-        (entry, entry_pybtex) = render_entry_hook(copy.deepcopy(entry), copy.deepcopy(entry_pybtex))
+        (entry, entry_pybtex) = cfgpy['render_entry_hook'](copy.deepcopy(entry), copy.deepcopy(entry_pybtex))
         print(entry_pybtex)
 
         bib.entries[entry.bibtexid] = entry_pybtex
