@@ -2,6 +2,7 @@
 
 import argparse
 import re
+import pybtex.errors import set_strict_mode
 import bibtex_dblp.dblp_data
 import bibtex_dblp.dblp_api
 import bibtex_dblp.io
@@ -156,6 +157,8 @@ def run():
                         default='_build/main.aux', help='File name of .aux file')
     parser.add_argument('--yaml', metavar='YAML_FILE', type=str,
                         default='references.yaml', help='File name of .yaml file')
+    parser.add_argument('--laxpybteximport', action='store_true',
+                        default=False, help='Disable strict mode of pybtex for .bib import')
     args = parser.parse_args()
 
     METHODS_WITHOUT_OLDENTRY = [
@@ -194,7 +197,10 @@ def run():
 
     store = Store.load_or_empty(args.yaml)
 
+    if args.laxpybteximport:
+        set_strict_mode(False)
     bibtex_entries = bibtex_dblp.database.load_from_file(args.bib)
+    set_strict_mode()
 
     for bibtexid in bibtexids_included:
         if bibtexid in store.bibtexids:
