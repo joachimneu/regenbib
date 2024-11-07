@@ -122,7 +122,14 @@ def run():
             entry_pybtex.rawlists['ids'] = entry_pybtex.rawlists.get('ids', [])
             entry_pybtex.rawlists['ids'].append(entry.bibtexid)
             entry_pybtex.rawlists['ids'] = list(set(entry_pybtex.rawlists['ids']))
-            bib.entries['reference_' + entry_contentid] = entry_pybtex
+            cnt = -1
+            primary_bibtexid = None
+            while True:
+                cnt += 1
+                primary_bibtexid = 'reference_' + entry_contentid + '_' + str(cnt)
+                if not primary_bibtexid in bib.entries.keys():
+                    break
+            bib.entries[primary_bibtexid] = entry_pybtex
         MyBiblatexWriter().write_file(bib, args.bib)
 
     else:
