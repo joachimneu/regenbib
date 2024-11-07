@@ -133,7 +133,7 @@ def run():
         MyBiblatexWriter().write_file(bib, args.bib)
 
     else:
-        # stay with Bibtex rendering
+        # Bibtex rendering
         for (entry_contentid, entry, entry_pybtex) in entries:
             bib.entries[entry.bibtexid] = entry_pybtex
         bibtex_dblp.database.write_to_file(bib, args.bib)
