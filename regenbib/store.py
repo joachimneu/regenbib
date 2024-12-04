@@ -207,3 +207,30 @@ class Store:
 
     def sort(self, keyfn):
         self.entries.sort(key=keyfn)
+
+    def dedup(self):
+        entries = {}
+        entries_to_remove = []
+
+        for (idx, entry) in enumerate(self.entries):
+            if not entry.bibtexid in entries.keys():
+                entries[entry.bibtexid] = []
+            entries[entry.bibtexid].append(idx)
+        
+        for (bibtexid, idxs) in entries.items():
+            if len(idxs) > 1:
+                print(f">>> Duplicate entry: {bibtexid} ({len(idxs)}x)")
+                for idx in idxs:
+                    print(self.entries[idx].sortkey_contentid, " ", self.entries[idx])
+                if len(idxs) == 2 and self.entries[idxs[0]].sortkey_contentid == self.entries[idxs[1]].sortkey_contentid:
+                    entries_to_remove.append(idxs[1])
+                elif len(idxs) == 3 and self.entries[idxs[0]].sortkey_contentid == self.entries[idxs[1]].sortkey_contentid and self.entries[idxs[0]].sortkey_contentid == self.entries[idxs[2]].sortkey_contentid:
+                    entries_to_remove.append(idxs[1])
+                    entries_to_remove.append(idxs[2])
+                else:
+                    print("!!! MANUAL CLEANUP REQUIRED !!!")
+
+        entries_to_remove.sort(reverse=True)
+        for idx in entries_to_remove:
+            del self.entries[idx]
+
