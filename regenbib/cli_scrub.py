@@ -23,6 +23,7 @@ def run():
         assert set(args.by) <= set("SBC")
         keyfn = lambda e: [ e.sortkey_source if o == 'S' else e.sortkey_bibtexid if o == 'B' else e.sortkey_contentid if o == 'C' else '' for o in args.by ]
         store.sort(keyfn)
+        
     elif args.command == 'dedup':
         store.dedup()
 
