@@ -2,6 +2,7 @@
 
 import argparse
 import re
+import copy
 from pybtex.errors import set_strict_mode
 import bibtex_dblp.dblp_data
 import bibtex_dblp.dblp_api
@@ -208,32 +209,39 @@ def run():
 
         print("Importing entry:", bibtexid)
 
-        if not bibtexid in bibtex_entries.entries.keys():
-            print("-> Not found in .bib file!")
+        entry_old = None
+        if bibtexid in bibtex_entries.entries.keys():
+            entry_old = bibtex_entries.entries[bibtexid]
+        else:
+            for (tmp_entry_key, tmp_entry) in bibtex_entries.entries.items():
+                tmp_ids = tmp_entry.fields.get('ids', '')
+                if not tmp_ids:
+                    tmp_ids = []
+                else:
+                    tmp_ids = [ tmp_id.strip() for tmp_id in tmp_ids.split(',') ]
+                if bibtexid in tmp_ids:
+                    entry_old = copy.deepcopy(tmp_entry)
+                    entry_old.key = bibtexid
+                    del entry_old.fields['ids']
+                    break
 
+        if entry_old is None:
+            print("-> Not found in .bib file!")
             entry = attempt_import([(lambda name, fun: (name, lambda: fun(bibtexid)))(name, fun)
                                     for (name, fun) in METHODS_WITHOUT_OLDENTRY])
 
-            if entry != None:
-                store.entries.append(entry)
-                store.dump(args.yaml)
-
-            store.dump(args.yaml)
-
         else:
-            entry_old = bibtex_entries.entries[bibtexid]
             print("-> Current entry:", entry_old)
-
             entry = attempt_import([(lambda name, fun: (name, lambda: fun(bibtexid)))(name, fun)
                                     for (name, fun) in METHODS_WITHOUT_OLDENTRY]
                                    + [(lambda name, fun: (name, lambda: fun(bibtexid, entry_old)))(name, fun)
                                       for (name, fun) in METHODS_WITH_OLDENTRY])
 
-            if entry != None:
-                store.entries.append(entry)
-                store.dump(args.yaml)
-
+        if entry != None:
+            store.entries.append(entry)
             store.dump(args.yaml)
+
+        store.dump(args.yaml)
 
 
 if __name__ == '__main__':
