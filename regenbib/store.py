@@ -8,6 +8,20 @@ import arxiv
 import requests
 from bs4 import BeautifulSoup
 import hashlib
+from functools import cache
+
+
+@cache
+def _lookup_dblp_by_dblpid(dblpid):
+    return bibtex_dblp.dblp_api.get_bibtex(dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed)
+
+@cache
+def _lookup_arxiv_by_arxivid(arxivid):
+    return arxiv.Search(id_list=[arxivid])
+
+@cache
+def _lookup_eprint_by_url(url):
+    return requests.get(url).text
 
 
 @dataclass
@@ -48,8 +62,7 @@ class DblpEntry:
     dblpid: str
 
     def render_pybtex_entry(self):
-        result_dblp = bibtex_dblp.dblp_api.get_bibtex(
-            self.dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed)
+        result_dblp = _lookup_dblp_by_dblpid(self.dblpid)
         data = bibtex_dblp.database.parse_bibtex(result_dblp)
         assert len(data.entries) == 1
         key = list(data.entries.keys())[0]
@@ -88,7 +101,7 @@ class ArxivEntry:
 
     def render_pybtex_entry(self):
         qid = self.arxivid + (('v' + self.version) if self.version else '')
-        search = arxiv.Search(id_list=[qid])
+        search = _lookup_arxiv_by_arxivid(qid)
         res = list(search.results())
         assert len(res) == 1
         entry = res[0]
@@ -153,7 +166,7 @@ class EprintEntry:
 
     def render_pybtex_entry(self):
         url = "https://eprint.iacr.org/" + self.eprintid
-        soup = BeautifulSoup(requests.get(url).text, features="html.parser")
+        soup = BeautifulSoup(_lookup_eprint_by_url(url), features="html.parser")
 
         data = bibtex_dblp.database.parse_bibtex(
             soup.select("#bibtex")[0].text)
