@@ -17,7 +17,7 @@ def format_dblp_publication(pub: bibtex_dblp.dblp_data.DblpPublication):
         book += pub.venue + (" ({})".format(pub.volume) if pub.volume else "")
     if pub.booktitle:
         book += pub.booktitle
-    return "{}:\n\t\t{} {} {}\n\t\t{}  {}".format(authors, pub.title, book, pub.year, pub.ee, pub.url)
+    return "{}:\n\t\t{} {} {} ({})\n\t\t{}  {}?view=bibtex".format(authors, pub.title, book, pub.year, pub.pages, pub.ee, pub.url)
 
 
 def search_key_on_dblp(search_query, max_search_results=5):
