@@ -122,6 +122,7 @@ def run():
             entry_pybtex.rawlists['ids'] = entry_pybtex.rawlists.get('ids', [])
             entry_pybtex.rawlists['ids'].append(entry.bibtexid)
             entry_pybtex.rawlists['ids'] = list(set(entry_pybtex.rawlists['ids']))
+            entry_pybtex.rawlists['ids'].sort()
             cnt = -1
             primary_bibtexid = None
             while True:
