@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 import argparse
-from .store import Store
+from .store import Store, disk_cache
 
 
 def run():
@@ -15,6 +15,8 @@ def run():
     
     subparser_dedup = subparsers.add_parser('dedup', help='Deduplicate .yaml file')
 
+    subparser_rmcache = subparsers.add_parser('rmcache', help='Clear cached metadata')
+
     args = parser.parse_args()
 
     store = Store.load_or_empty(args.yaml)
@@ -26,6 +28,13 @@ def run():
         
     elif args.command == 'dedup':
         store.dedup()
+
+    elif args.command == 'rmcache':
+        print("Pre-clear", "stats (hits, misses):", disk_cache.stats())
+        print("Pre-clear", "check (warnings):", disk_cache.check())
+        disk_cache.clear()
+        print("Post-clear", "stats (hits, misses):", disk_cache.stats())
+        print("Post-clear", "check (warnings):", disk_cache.check())
 
     store.dump(args.yaml)
 

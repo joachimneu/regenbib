@@ -8,18 +8,23 @@ import arxiv
 import requests
 from bs4 import BeautifulSoup
 import hashlib
-from functools import cache
+from diskcache import Cache
+from pathlib import Path
+import os
 
 
-@cache
+disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib')
+disk_cache = Cache(directory=disk_cache_dir)
+
+@disk_cache.memoize(expire=60*60*24, tag='dblp')
 def _lookup_dblp_by_dblpid(dblpid):
     return bibtex_dblp.dblp_api.get_bibtex(dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed)
 
-@cache
+@disk_cache.memoize(expire=60*60*24, tag='arxiv')
 def _lookup_arxiv_by_arxivid(arxivid):
     return arxiv.Search(id_list=[arxivid])
 
-@cache
+@disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_url(url):
     return requests.get(url).text
 
