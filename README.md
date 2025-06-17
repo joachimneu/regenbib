@@ -110,3 +110,40 @@ See entry types in `regenbib/store.py`:
 * arXiv
 * IACR ePrint
 * Raw `.bib` entry
+
+## AI-Assisted Import
+
+`regenbib-import` now supports AI-assisted bibliography import using OpenAI's API. When enabled, this feature uses artificial intelligence to automatically generate optimal search queries for finding bibliographic entries on DBLP.
+
+### Setup
+
+To use AI-assisted import, you need to:
+
+1. Install the OpenAI Python library (included in dependencies)
+2. Set your OpenAI API key as an environment variable:
+   ```bash
+   export OPENAI_API_KEY="your-api-key-here"
+   ```
+
+### Usage
+
+When running `regenbib-import`, you'll see "ai-assisted" as the first option in the import methods menu:
+
+```
+-> Import method? [0=skip, 1=ai-assisted, 2=dblp-free-search, 3=arxiv-manual-id, 4=eprint-manual-id, 5=ai-assisted, 6=current-entry, 7=dblp-search-title, 8=dblp-search-authorstitle]:
+```
+
+The AI-assisted method will:
+1. Analyze the available bibliographic information (title, authors, year, venue)
+2. Generate multiple optimized search queries using AI
+3. Automatically try each query on DBLP
+4. Present you with the best matches found
+
+This is particularly useful when:
+- You have incomplete or messy bibliographic data
+- Manual searches are not finding the right entries
+- You want to automate the search process
+
+### How it works
+
+The AI assistant examines your bibliographic data and creates targeted search queries, similar to how the [blockchain-deadlines chatgpt-updater](https://github.com/blockchain-deadlines/blockchain-deadlines.github.io/blob/main/chatgpt-updater.py) works for conference deadline updates.
