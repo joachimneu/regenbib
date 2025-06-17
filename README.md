@@ -118,12 +118,16 @@ See entry types in `regenbib/store.py`:
 
 ### Setup
 
-To use AI-assisted import, you need to:
+To use AI-assisted import, you need to set up the required API keys:
 
-1. Install the OpenAI Python library (included in dependencies)
-2. Set your OpenAI API key as an environment variable:
+1. **OpenAI API Key** (required):
    ```bash
-   export OPENAI_API_KEY="your-api-key-here"
+   export OPENAI_API_KEY="your-openai-api-key-here"
+   ```
+
+2. **Serper API Key** (optional, for enhanced web search):
+   ```bash
+   export SERPER_API_KEY="your-serper-api-key-here"
    ```
 
 ### Usage
@@ -134,19 +138,20 @@ regenbib-import-openai
 ```
 
 The AI assistant will:
-1. Analyze existing bibliographic information from your .bib file
-2. Use multiple search tools to find relevant entries:
-   - Web search for general information
-   - DBLP database queries
-   - arXiv preprint searches  
-   - IACR ePrint archive searches
-   - Website content reading for additional context
-3. Apply intelligent prioritization rules:
+1. Automatically analyze bibliographic information from your .bib file and citation keys
+2. Make educated guesses for missing entries based on citation keys (no user interaction required)
+3. Use multiple search tools to find relevant entries:
+   - Web search via Serper API for general information
+   - DBLP database queries for academic publications
+   - arXiv ID-based lookups for preprints
+   - IACR ePrint ID-based lookups for cryptography papers
+   - Website content reading (both HTML and text) with token-aware length limits
+4. Apply intelligent prioritization rules:
    - Prefer officially published versions over preprints
    - For preprints without official publications, prefer direct IACR/arXiv entries over DBLP references
    - Only use raw BibTeX entries as a last resort
-4. Present up to 5 ranked suggestions with detailed reasoning
-5. Allow you to select the most appropriate entry
+5. Return structured suggestions using the existing entry types (DblpEntry, ArxivEntry, EprintEntry, RawBibtexEntry)
+6. Present ranked suggestions with reasoning for your selection
 
 ### Key Features
 
