@@ -5,8 +5,8 @@ import json
 import os
 import re
 import copy
-from typing import List, Optional, Union, Dict, Any
-from dataclasses import dataclass
+from typing import List, Optional, Union, Dict, Any, Literal
+from pydantic import BaseModel
 from pybtex.errors import set_strict_mode
 import bibtex_dblp.dblp_data
 import bibtex_dblp.dblp_api
@@ -18,33 +18,90 @@ import arxiv
 from .store import Store, DblpEntry, ArxivEntry, EprintEntry, RawBibtexEntry
 
 
-@dataclass
-class BibliographicSuggestion:
-    """A single bibliographic suggestion with metadata."""
-    title: str
-    authors: str
-    year: Optional[str]
-    venue: Optional[str]
-    entry_type: str  # 'dblp', 'arxiv', 'eprint', 'raw'
-    entry_data: Dict[str, Any]  # Contains the specific data needed to create the entry
-    reasoning: str  # Why this entry was suggested
-    priority: int  # 1-5, where 1 is highest priority
+# Pydantic models for structured output matching store entry types
+class DblpEntryData(BaseModel):
+    bibtexid: str
+    dblpid: str
+    entry_type: Literal["dblp"] = "dblp"
 
 
-def search_web(query: str, num_results: int = 5) -> str:
-    """Search the web for information. Returns a summary of results."""
-    # For now, we'll use a simple approach - in a real implementation,
-    # you might want to use Google Custom Search API or similar
+class ArxivEntryData(BaseModel):
+    bibtexid: str
+    arxivid: str
+    version: str
+    entry_type: Literal["arxiv"] = "arxiv"
+
+
+class EprintEntryData(BaseModel):
+    bibtexid: str
+    eprintid: str
+    entry_type: Literal["eprint"] = "eprint"
+
+
+class RawBibtexEntryData(BaseModel):
+    bibtexid: str
+    rawbibtex: List[str]
+    entry_type: Literal["raw"] = "raw"
+
+
+class BibliographicSuggestions(BaseModel):
+    """Structured output containing up to 5 bibliographic suggestions."""
+    suggestions: List[Union[DblpEntryData, ArxivEntryData, EprintEntryData, RawBibtexEntryData]]
+    reasoning: str  # Overall reasoning for the suggestions
+
+
+def callback_search(query: str) -> Dict[str, Any]:
+    """Search the web using Serper API."""
+    serper_api_key = os.environ.get("SERPER_API_KEY")
+    if not serper_api_key:
+        return {"error": "SERPER_API_KEY environment variable not set"}
+    
     try:
-        # Use DuckDuckGo or similar service for basic web search
-        # This is a placeholder - real implementation would need proper web search
-        return f"Web search for '{query}' - This is a placeholder. In production, this would perform actual web search and return relevant results."
+        url = "https://google.serper.dev/search"
+        payload = json.dumps({
+            "q": query,
+            "num": 10
+        })
+        headers = {
+            'X-API-KEY': serper_api_key,
+            'Content-Type': 'application/json'
+        }
+        
+        response = requests.post(url, headers=headers, data=payload, timeout=10)
+        response.raise_for_status()
+        
+        return response.json()
+        
     except Exception as e:
-        return f"Web search failed: {str(e)}"
+        return {"error": f"Search failed: {str(e)}"}
 
 
-def read_website(url: str) -> str:
-    """Read content from a website URL."""
+def callback_browse_html(url: str) -> Dict[str, Any]:
+    """Browse a website and return HTML content with length limitations."""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        # Limit HTML content to avoid token limits (50KB max)
+        html_content = response.text
+        if len(html_content) > 50000:
+            html_content = html_content[:50000] + "... [truncated]"
+        
+        return {
+            "url": url,
+            "status_code": response.status_code,
+            "html": html_content
+        }
+        
+    except Exception as e:
+        return {"error": f"Failed to browse {url}: {str(e)}"}
+
+
+def callback_browse_text(url: str) -> Dict[str, Any]:
+    """Browse a website and return clean text content with length limitations."""
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -64,21 +121,28 @@ def read_website(url: str) -> str:
         chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
         text = '\n'.join(chunk for chunk in chunks if chunk)
         
-        # Limit text length to avoid token limits
-        return text[:5000] + "..." if len(text) > 5000 else text
+        # Limit text length to avoid token limits (10KB max)
+        if len(text) > 10000:
+            text = text[:10000] + "... [truncated]"
+        
+        return {
+            "url": url,
+            "status_code": response.status_code,
+            "text": text
+        }
         
     except Exception as e:
-        return f"Failed to read website {url}: {str(e)}"
+        return {"error": f"Failed to browse {url}: {str(e)}"}
 
 
-def query_dblp(search_query: str, max_results: int = 5) -> str:
+def callback_query_dblp(search_query: str, max_results: int = 5) -> Dict[str, Any]:
     """Query DBLP and return bibliographic information."""
     try:
         search_results = bibtex_dblp.dblp_api.search_publication(
             search_query, max_search_results=max_results)
         
         if search_results.total_matches == 0:
-            return f"No DBLP results found for query: {search_query}"
+            return {"error": f"No DBLP results found for query: {search_query}"}
         
         results = []
         for i, result in enumerate(search_results.results[:max_results]):
@@ -102,97 +166,87 @@ def query_dblp(search_query: str, max_results: int = 5) -> str:
             }
             results.append(entry_info)
         
-        return json.dumps({
+        return {
             'total_matches': search_results.total_matches,
             'results_shown': len(results),
             'results': results
-        }, indent=2)
+        }
         
     except Exception as e:
-        return f"DBLP query failed: {str(e)}"
+        return {"error": f"DBLP query failed: {str(e)}"}
 
 
-def query_arxiv(search_query: str, max_results: int = 5) -> str:
-    """Query arXiv and return bibliographic information."""
+def callback_lookup_arxiv_by_id(arxiv_id: str) -> Dict[str, Any]:
+    """Lookup a specific arXiv paper by its ID."""
     try:
-        search = arxiv.Search(
-            query=search_query,
-            max_results=max_results,
-            sort_by=arxiv.SortCriterion.Relevance
-        )
+        # Clean the arXiv ID
+        arxiv_id = arxiv_id.replace('arXiv:', '').strip()
         
-        results = []
-        for i, result in enumerate(search.results()):
-            entry_info = {
-                'index': i + 1,
-                'title': result.title,
-                'authors': ', '.join([author.name for author in result.authors]),
-                'year': result.published.year,
-                'arxiv_id': result.get_short_id(),
-                'primary_category': result.primary_category,
-                'url': result.entry_id,
-                'summary': result.summary[:500] + "..." if len(result.summary) > 500 else result.summary
-            }
-            results.append(entry_info)
+        search = arxiv.Search(id_list=[arxiv_id])
+        results = list(search.results())
         
-        return json.dumps({
-            'results_count': len(results),
-            'results': results
-        }, indent=2)
+        if not results:
+            return {"error": f"No arXiv paper found with ID: {arxiv_id}"}
+        
+        result = results[0]
+        entry_info = {
+            'title': result.title,
+            'authors': ', '.join([author.name for author in result.authors]),
+            'year': result.published.year,
+            'arxiv_id': result.get_short_id(),
+            'primary_category': result.primary_category,
+            'url': result.entry_id,
+            'published': result.published.strftime('%Y-%m-%d'),
+            'summary': result.summary[:500] + "..." if len(result.summary) > 500 else result.summary
+        }
+        
+        return {'result': entry_info}
         
     except Exception as e:
-        return f"arXiv query failed: {str(e)}"
+        return {"error": f"arXiv lookup failed: {str(e)}"}
 
 
-def query_iacr_eprint(search_query: str) -> str:
-    """Query IACR ePrint and return bibliographic information."""
+def callback_lookup_eprint_by_id(eprint_id: str) -> Dict[str, Any]:
+    """Lookup a specific IACR ePrint paper by its ID."""
     try:
-        # IACR ePrint doesn't have a direct API, so we'll search their website
-        base_url = "https://eprint.iacr.org"
-        search_url = f"{base_url}/search?q={requests.utils.quote(search_query)}"
+        # Ensure proper format (year/number)
+        if '/' not in eprint_id:
+            return {"error": f"Invalid ePrint ID format: {eprint_id}. Expected format: year/number"}
+        
+        url = f"https://eprint.iacr.org/{eprint_id}"
         
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        response = requests.get(search_url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Look for search results (this is a simplified parser)
-        results = []
-        result_divs = soup.find_all('div', class_='result') or soup.find_all('tr', class_='result')
+        # Extract title
+        title_elem = soup.find('h3')
+        title = title_elem.get_text().strip() if title_elem else "Unknown Title"
         
-        for i, div in enumerate(result_divs[:5]):  # Limit to 5 results
-            title_elem = div.find('a') or div.find('td', class_='title')
-            if title_elem:
-                title = title_elem.get_text().strip()
-                link = title_elem.get('href', '')
-                if link and not link.startswith('http'):
-                    link = base_url + link
-                
-                # Extract eprint ID from link
-                eprint_id = ""
-                if '/eprint/' in link:
-                    eprint_id = link.split('/eprint/')[-1].split('/')[0]
-                
-                results.append({
-                    'index': i + 1,
-                    'title': title,
-                    'eprint_id': eprint_id,
-                    'url': link
-                })
+        # Extract authors
+        authors_elem = soup.find('h4')
+        authors = authors_elem.get_text().strip() if authors_elem else "Unknown Authors"
         
-        if not results:
-            return f"No IACR ePrint results found for query: {search_query}"
+        # Try to extract BibTeX if available
+        bibtex_elem = soup.find(id='bibtex')
+        bibtex = bibtex_elem.get_text().strip() if bibtex_elem else None
         
-        return json.dumps({
-            'results_count': len(results),
-            'results': results
-        }, indent=2)
+        entry_info = {
+            'title': title,
+            'authors': authors,
+            'eprint_id': eprint_id,
+            'url': url,
+            'bibtex': bibtex
+        }
+        
+        return {'result': entry_info}
         
     except Exception as e:
-        return f"IACR ePrint query failed: {str(e)}"
+        return {"error": f"IACR ePrint lookup failed: {str(e)}"}
 
 
 def create_openai_client():
@@ -209,12 +263,12 @@ def create_openai_client():
     return OpenAI(api_key=api_key)
 
 
-def get_bibliographic_suggestions(bibtexid: str, entry_old=None) -> List[BibliographicSuggestion]:
+def get_bibliographic_suggestions(bibtexid: str, entry_old=None) -> List[Union[DblpEntry, ArxivEntry, EprintEntry, RawBibtexEntry]]:
     """Use OpenAI with structured output to get bibliographic suggestions."""
     
     client = create_openai_client()
     
-    # Prepare context
+    # Prepare context - no user interaction, make educated guesses from citation key
     context = f"BibTeX ID: {bibtexid}\n"
     if entry_old:
         if 'title' in entry_old.fields:
@@ -230,36 +284,19 @@ def get_bibliographic_suggestions(bibtexid: str, entry_old=None) -> List[Bibliog
             context += f"Current Journal: {entry_old.fields['journal']}\n"
         context += f"\nCurrent BibTeX entry:\n{entry_old.to_string('bibtex')}\n"
     else:
-        # Get basic info from user
-        title = bibtex_dblp.io.get_user_input("---> Title [<empty>=abort]: ")
-        if not title:
-            return []
-        context += f"Title: {title}\n"
-        
-        authors = bibtex_dblp.io.get_user_input("---> Authors (optional): ")
-        if authors:
-            context += f"Authors: {authors}\n"
-        
-        year = bibtex_dblp.io.get_user_input("---> Year (optional): ")
-        if year:
-            context += f"Year: {year}\n"
-        
-        venue = bibtex_dblp.io.get_user_input("---> Venue/Conference/Journal (optional): ")
-        if venue:
-            context += f"Venue: {venue}\n"
+        context += "No existing entry data. Please make educated guesses based on the citation key.\n"
     
     # Tools available to the AI
     tools = [
         {
             "type": "function",
             "function": {
-                "name": "search_web",
-                "description": "Search the web for general information about a paper or topic",
+                "name": "callback_search",
+                "description": "Search the web using Google Search via Serper API",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "query": {"type": "string", "description": "Search query"},
-                        "num_results": {"type": "integer", "description": "Number of results to return", "default": 5}
+                        "query": {"type": "string", "description": "Search query"}
                     },
                     "required": ["query"]
                 }
@@ -268,12 +305,12 @@ def get_bibliographic_suggestions(bibtexid: str, entry_old=None) -> List[Bibliog
         {
             "type": "function",
             "function": {
-                "name": "read_website",
-                "description": "Read content from a specific website URL",
+                "name": "callback_browse_html",
+                "description": "Browse a website and return HTML content",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "url": {"type": "string", "description": "URL to read"}
+                        "url": {"type": "string", "description": "URL to browse"}
                     },
                     "required": ["url"]
                 }
@@ -282,7 +319,21 @@ def get_bibliographic_suggestions(bibtexid: str, entry_old=None) -> List[Bibliog
         {
             "type": "function",
             "function": {
-                "name": "query_dblp",
+                "name": "callback_browse_text",
+                "description": "Browse a website and return clean text content",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string", "description": "URL to browse"}
+                    },
+                    "required": ["url"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "callback_query_dblp",
                 "description": "Query DBLP database for bibliographic entries",
                 "parameters": {
                     "type": "object",
@@ -297,29 +348,28 @@ def get_bibliographic_suggestions(bibtexid: str, entry_old=None) -> List[Bibliog
         {
             "type": "function",
             "function": {
-                "name": "query_arxiv",
-                "description": "Query arXiv preprint server for papers",
+                "name": "callback_lookup_arxiv_by_id",
+                "description": "Lookup a specific arXiv paper by its ID",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "search_query": {"type": "string", "description": "Search query for arXiv"},
-                        "max_results": {"type": "integer", "description": "Maximum number of results", "default": 5}
+                        "arxiv_id": {"type": "string", "description": "arXiv ID (e.g., '2301.12345' or 'arXiv:2301.12345')"}
                     },
-                    "required": ["search_query"]
+                    "required": ["arxiv_id"]
                 }
             }
         },
         {
             "type": "function",
             "function": {
-                "name": "query_iacr_eprint",
-                "description": "Query IACR ePrint archive for cryptography papers",
+                "name": "callback_lookup_eprint_by_id",
+                "description": "Lookup a specific IACR ePrint paper by its ID",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "search_query": {"type": "string", "description": "Search query for IACR ePrint"}
+                        "eprint_id": {"type": "string", "description": "ePrint ID in format 'year/number' (e.g., '2023/123')"}
                     },
-                    "required": ["search_query"]
+                    "required": ["eprint_id"]
                 }
             }
         }
@@ -335,14 +385,22 @@ IMPORTANT PRIORITIZATION RULES:
 2. If there is no officially published version of a preprint yet, prefer IACR ePrint or arXiv entries directly rather than DBLP entries that reference those preprint services.
 3. Only resort to raw BibTeX entries if none of the specific entry types (DBLP, arXiv, IACR ePrint) can represent the reference.
 
-Use the tools to search for information systematically:
-1. Start with DBLP queries using title and author information
-2. Search arXiv if the work might be a preprint or if DBLP doesn't have good matches
-3. Search IACR ePrint if the work appears to be related to cryptography
-4. Use web search for additional context or to find official publication information
-5. Read specific websites if you find promising leads
+If no existing entry is provided, make educated guesses based on the citation key to find relevant papers.
 
-After gathering information, provide your recommendations as a structured response with exactly the information needed to create the bibliography entries."""
+Use the tools to search for information systematically:
+1. Start with web search to understand the citation key and find information about the work
+2. Query DBLP using any discovered title and author information  
+3. For arXiv papers, use the arXiv ID lookup if you can identify the ID
+4. For IACR ePrint papers, use the ePrint ID lookup if you can identify the ID
+5. Browse specific websites if you find promising leads
+
+Entry types you can suggest:
+- DblpEntryData: For papers in DBLP database (provide dblpid - the DBLP key)
+- ArxivEntryData: For arXiv preprints (provide arxiv_id and version)
+- EprintEntryData: For IACR ePrint papers (provide eprint_id in format year/number)
+- RawBibtexEntryData: For papers not available in other databases (provide raw bibtex lines as list)
+
+Return your suggestions in order of preference according to the prioritization rules."""
     
     messages = [
         {"role": "system", "content": system_message},
@@ -352,17 +410,15 @@ After gathering information, provide your recommendations as a structured respon
     print("---> Querying OpenAI for bibliographic suggestions...")
     
     # Make the API call with tools
-    response = client.chat.completions.create(
-        model="gpt-4o",  # Use GPT-4 for better tool usage
+    response = client.beta.chat.completions.parse(
+        model="gpt-4o",
         messages=messages,
         tools=tools,
-        tool_choice="auto",
-        max_tokens=4000,
-        temperature=0.3
+        response_format=BibliographicSuggestions
     )
     
     # Handle tool calls
-    while response.choices[0].message.tool_calls:
+    while response.choices[0].finish_reason == "tool_calls":
         messages.append(response.choices[0].message)
         
         for tool_call in response.choices[0].message.tool_calls:
@@ -372,134 +428,65 @@ After gathering information, provide your recommendations as a structured respon
             print(f"---> Calling {function_name} with args: {function_args}")
             
             # Call the appropriate function
-            if function_name == "search_web":
-                result = search_web(**function_args)
-            elif function_name == "read_website":
-                result = read_website(**function_args)
-            elif function_name == "query_dblp":
-                result = query_dblp(**function_args)
-            elif function_name == "query_arxiv":
-                result = query_arxiv(**function_args)
-            elif function_name == "query_iacr_eprint":
-                result = query_iacr_eprint(**function_args)
+            if function_name == "callback_search":
+                result = callback_search(**function_args)
+            elif function_name == "callback_browse_html":
+                result = callback_browse_html(**function_args)
+            elif function_name == "callback_browse_text":
+                result = callback_browse_text(**function_args)
+            elif function_name == "callback_query_dblp":
+                result = callback_query_dblp(**function_args) 
+            elif function_name == "callback_lookup_arxiv_by_id":
+                result = callback_lookup_arxiv_by_id(**function_args)
+            elif function_name == "callback_lookup_eprint_by_id":
+                result = callback_lookup_eprint_by_id(**function_args)
             else:
-                result = f"Unknown function: {function_name}"
+                result = {"error": f"Unknown function: {function_name}"}
             
             messages.append({
                 "tool_call_id": tool_call.id,
                 "role": "tool",
                 "name": function_name,
-                "content": result
+                "content": json.dumps(result)
             })
         
         # Get the next response
-        response = client.chat.completions.create(
+        response = client.beta.chat.completions.parse(
             model="gpt-4o",
             messages=messages,
             tools=tools,
-            tool_choice="auto",
-            max_tokens=4000,
-            temperature=0.3
+            response_format=BibliographicSuggestions
         )
     
-    # Now ask for structured recommendations
-    final_prompt = """Based on your research, please provide up to 5 bibliographic suggestions in the following JSON format:
-
-{
-  "suggestions": [
-    {
-      "title": "Paper title",
-      "authors": "Author1, Author2",
-      "year": "2023",
-      "venue": "Conference/Journal name",
-      "entry_type": "dblp|arxiv|eprint|raw",
-      "entry_data": {
-        // Specific data needed to create the entry:
-        // For "dblp": {"dblp_key": "key"}
-        // For "arxiv": {"arxiv_id": "2301.12345", "version": "v1"}
-        // For "eprint": {"eprint_id": "2023/123"}
-        // For "raw": {"bibtex": "raw bibtex string"}
-      },
-      "reasoning": "Why this entry was selected",
-      "priority": 1
-    }
-  ]
-}
-
-Ensure entries are ranked by priority (1=highest, 5=lowest) according to the prioritization rules given earlier."""
-    
-    messages.append({"role": "user", "content": final_prompt})
-    
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=messages,
-        max_tokens=2000,
-        temperature=0.1,
-        response_format={"type": "json_object"}
-    )
-    
-    try:
-        result_json = json.loads(response.choices[0].message.content)
-        suggestions = []
+    # Convert structured output to store entries
+    if response.choices[0].finish_reason == "stop" and response.choices[0].message.parsed:
+        suggestions_data = response.choices[0].message.parsed
+        print(f"---> AI reasoning: {suggestions_data.reasoning}")
         
-        for item in result_json.get("suggestions", []):
-            suggestion = BibliographicSuggestion(
-                title=item.get("title", ""),
-                authors=item.get("authors", ""),
-                year=item.get("year"),
-                venue=item.get("venue"),
-                entry_type=item.get("entry_type", "raw"),
-                entry_data=item.get("entry_data", {}),
-                reasoning=item.get("reasoning", ""),
-                priority=item.get("priority", 5)
-            )
-            suggestions.append(suggestion)
+        entries = []
+        for suggestion in suggestions_data.suggestions:
+            try:
+                if suggestion.entry_type == "dblp":
+                    entry = DblpEntry(suggestion.bibtexid, suggestion.dblpid)
+                elif suggestion.entry_type == "arxiv":
+                    entry = ArxivEntry(suggestion.bibtexid, suggestion.arxivid, suggestion.version)
+                elif suggestion.entry_type == "eprint":
+                    entry = EprintEntry(suggestion.bibtexid, suggestion.eprintid)
+                elif suggestion.entry_type == "raw":
+                    entry = RawBibtexEntry(suggestion.bibtexid, suggestion.rawbibtex)
+                else:
+                    print(f"---> Unknown entry type: {suggestion.entry_type}")
+                    continue
+                
+                entries.append(entry)
+            except Exception as e:
+                print(f"---> Error creating entry: {e}")
+                continue
         
-        return suggestions
-        
-    except Exception as e:
-        print(f"---> Error parsing AI response: {e}")
+        return entries
+    else:
+        print("---> No suggestions received from AI")
         return []
-
-
-def create_entry_from_suggestion(bibtexid: str, suggestion: BibliographicSuggestion):
-    """Create a Store entry from a BibliographicSuggestion."""
-    try:
-        if suggestion.entry_type == "dblp":
-            dblp_key = suggestion.entry_data.get("dblp_key")
-            if not dblp_key:
-                raise ValueError("Missing dblp_key for DBLP entry")
-            return DblpEntry(bibtexid, dblp_key)
-        
-        elif suggestion.entry_type == "arxiv":
-            arxiv_id = suggestion.entry_data.get("arxiv_id")
-            version = suggestion.entry_data.get("version", "")
-            if not arxiv_id:
-                raise ValueError("Missing arxiv_id for arXiv entry")
-            entry = ArxivEntry(bibtexid, arxiv_id, version)
-            return entry
-        
-        elif suggestion.entry_type == "eprint":
-            eprint_id = suggestion.entry_data.get("eprint_id")
-            if not eprint_id:
-                raise ValueError("Missing eprint_id for ePrint entry")
-            entry = EprintEntry(bibtexid, eprint_id)
-            return entry
-        
-        elif suggestion.entry_type == "raw":
-            bibtex_content = suggestion.entry_data.get("bibtex")
-            if not bibtex_content:
-                raise ValueError("Missing bibtex content for raw entry")
-            # Parse the raw bibtex to create RawBibtexEntry
-            rawbibtex_lines = bibtex_content.split('\n')
-            return RawBibtexEntry(bibtexid, rawbibtex_lines)
-        
-        else:
-            raise ValueError(f"Unknown entry type: {suggestion.entry_type}")
-    
-    except Exception as e:
-        print(f"---> Error creating entry from suggestion: {e}")
-        return None
 
 
 def run():
@@ -577,47 +564,40 @@ def run():
                     break
 
         if entry_old:
-            print(f"---> Found existing entry: {entry_old}")
+            print(f"---> Found existing entry")
 
         try:
-            # Get AI suggestions
-            suggestions = get_bibliographic_suggestions(bibtexid, entry_old)
+            # Get AI suggestions - now returns store entries directly
+            entries = get_bibliographic_suggestions(bibtexid, entry_old)
             
-            if not suggestions:
+            if not entries:
                 print("---> No suggestions received from AI")
                 continue
             
-            print(f"\n---> AI found {len(suggestions)} suggestions:")
-            for i, suggestion in enumerate(suggestions):
-                print(f"({i+1}) [{suggestion.entry_type.upper()}] {suggestion.title}")
-                print(f"    Authors: {suggestion.authors}")
-                if suggestion.year:
-                    print(f"    Year: {suggestion.year}")
-                if suggestion.venue:
-                    print(f"    Venue: {suggestion.venue}")
-                print(f"    Priority: {suggestion.priority}")
-                print(f"    Reasoning: {suggestion.reasoning}")
-                print()
+            print(f"\n---> AI found {len(entries)} suggestions:")
+            for i, entry in enumerate(entries):
+                entry_type = entry.__class__.__name__.replace('Entry', '').upper()
+                print(f"({i+1}) [{entry_type}] {entry}")
             
             # Let user select
             choice = bibtex_dblp.io.get_user_number(
-                f"---> Select suggestion [1-{len(suggestions)}, 0=skip]: ", 
-                0, len(suggestions)
+                f"---> Select suggestion [1-{len(entries)}, 0=skip]: ", 
+                0, len(entries)
             )
             
             if choice == 0:
                 print("---> Skipping entry")
                 continue
             
-            selected_suggestion = suggestions[choice - 1]
-            entry = create_entry_from_suggestion(bibtexid, selected_suggestion)
+            selected_entry = entries[choice - 1]
+            # Update the bibtexid to match what we're importing
+            selected_entry.bibtexid = bibtexid
             
-            if entry:
-                store.entries.append(entry)
-                store.dump(args.yaml)
-                print(f"---> Added {selected_suggestion.entry_type.upper()} entry for {bibtexid}")
-            else:
-                print("---> Failed to create entry from suggestion")
+            store.entries.append(selected_entry)
+            store.dump(args.yaml)
+            
+            entry_type = selected_entry.__class__.__name__.replace('Entry', '').upper()
+            print(f"---> Added {entry_type} entry for {bibtexid}")
                 
         except Exception as e:
             print(f"---> Error processing {bibtexid}: {e}")
