@@ -110,3 +110,65 @@ See entry types in `regenbib/store.py`:
 * arXiv
 * IACR ePrint
 * Raw `.bib` entry
+
+
+## AI-Assisted Import with OpenAI
+
+`regenbib-import-openai` provides advanced AI-assisted bibliography import using OpenAI's structured output and tool capabilities. This is a separate command from the regular `regenbib-import` that leverages artificial intelligence to intelligently search and recommend the most appropriate bibliographic entries.
+
+### Setup
+
+To use AI-assisted import, you need to set up the required API keys:
+
+1. **OpenAI API Key** (required):
+   ```bash
+   export OPENAI_API_KEY="your-openai-api-key-here"
+   ```
+
+2. **Serper API Key** (optional, for enhanced web search):
+   ```bash
+   export SERPER_API_KEY="your-serper-api-key-here"
+   ```
+
+### Usage
+
+Run the AI-assisted import with:
+```bash
+regenbib-import-openai
+```
+
+The AI assistant will:
+1. Automatically analyze bibliographic information from your .bib file and citation keys
+2. Make educated guesses for missing entries based on citation keys (no user interaction required)
+3. Use multiple search tools to find relevant entries:
+   - Web search via Serper API for general information
+   - DBLP database queries for academic publications
+   - arXiv ID-based lookups for preprints
+   - IACR ePrint ID-based lookups for cryptography papers
+   - Website content reading (both HTML and text) with token-aware length limits
+4. Apply intelligent prioritization rules:
+   - Prefer officially published versions over preprints
+   - For preprints without official publications, prefer direct IACR/arXiv entries over DBLP references
+   - Only use raw BibTeX entries as a last resort
+5. Return structured suggestions using the existing entry types (DblpEntry, ArxivEntry, EprintEntry, RawBibtexEntry)
+6. Present ranked suggestions with reasoning for your selection
+
+### Key Features
+
+- **Intelligent Search**: Uses OpenAI's GPT-4 with custom tools to search multiple academic databases
+- **Smart Prioritization**: Automatically prioritizes official publications over preprints
+- **Multi-Source Search**: Searches DBLP, arXiv, IACR ePrint, and the general web
+- **Structured Output**: Provides detailed reasoning for each suggestion
+- **Seamless Integration**: Works with existing .aux, .bib, and .yaml workflow
+
+### How It Works
+
+The AI assistant uses OpenAI's tool/function calling capabilities to:
+1. Search DBLP for officially published versions
+2. Query arXiv for preprints and academic papers
+3. Search IACR ePrint for cryptography-related works
+4. Perform web searches for additional context
+5. Read specific websites when promising leads are found
+6. Synthesize all information to provide ranked recommendations
+
+This approach ensures you get the most appropriate and highest-quality bibliographic entries for your references.
