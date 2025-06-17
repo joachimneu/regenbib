@@ -2,6 +2,8 @@
 
 import argparse
 import re
+import copy
+from pybtex.errors import set_strict_mode
 import bibtex_dblp.dblp_data
 import bibtex_dblp.dblp_api
 import bibtex_dblp.io
@@ -16,7 +18,7 @@ def format_dblp_publication(pub: bibtex_dblp.dblp_data.DblpPublication):
         book += pub.venue + (" ({})".format(pub.volume) if pub.volume else "")
     if pub.booktitle:
         book += pub.booktitle
-    return "{}:\n\t\t{} {} {}\n\t\t{}  {}".format(authors, pub.title, book, pub.year, pub.ee, pub.url)
+    return "{}:\n\t\t{} {} {} ({})\n\t\t{}  {}?view=bibtex".format(authors, pub.title, book, pub.year, pub.pages, pub.ee, pub.url)
 
 
 def search_key_on_dblp(search_query, max_search_results=5):
@@ -149,13 +151,15 @@ def attempt_import(methods):
 
 def run():
     parser = argparse.ArgumentParser(
-        description='Import bibliography entries from  DBLP.')
+        description='Import bibliography entries from DBLP.')
     parser.add_argument('--bib', metavar='BIB_FILE', type=str,
                         default='references.bib', help='File name of .bib file')
     parser.add_argument('--aux', metavar='AUX_FILE', type=str,
                         default='_build/main.aux', help='File name of .aux file')
     parser.add_argument('--yaml', metavar='YAML_FILE', type=str,
                         default='references.yaml', help='File name of .yaml file')
+    parser.add_argument('--laxpybteximport', action='store_true',
+                        default=False, help='Disable strict mode of pybtex for .bib import')
     args = parser.parse_args()
 
     METHODS_WITHOUT_OLDENTRY = [
@@ -194,7 +198,10 @@ def run():
 
     store = Store.load_or_empty(args.yaml)
 
+    if args.laxpybteximport:
+        set_strict_mode(False)
     bibtex_entries = bibtex_dblp.database.load_from_file(args.bib)
+    set_strict_mode()
 
     for bibtexid in bibtexids_included:
         if bibtexid in store.bibtexids:
@@ -202,32 +209,39 @@ def run():
 
         print("Importing entry:", bibtexid)
 
-        if not bibtexid in bibtex_entries.entries.keys():
-            print("-> Not found in .bib file!")
+        entry_old = None
+        if bibtexid in bibtex_entries.entries.keys():
+            entry_old = bibtex_entries.entries[bibtexid]
+        else:
+            for (tmp_entry_key, tmp_entry) in bibtex_entries.entries.items():
+                tmp_ids = tmp_entry.fields.get('ids', '')
+                if not tmp_ids:
+                    tmp_ids = []
+                else:
+                    tmp_ids = [ tmp_id.strip() for tmp_id in tmp_ids.split(',') ]
+                if bibtexid in tmp_ids:
+                    entry_old = copy.deepcopy(tmp_entry)
+                    entry_old.key = bibtexid
+                    del entry_old.fields['ids']
+                    break
 
+        if entry_old is None:
+            print("-> Not found in .bib file!")
             entry = attempt_import([(lambda name, fun: (name, lambda: fun(bibtexid)))(name, fun)
                                     for (name, fun) in METHODS_WITHOUT_OLDENTRY])
 
-            if entry != None:
-                store.entries.append(entry)
-                store.dump(args.yaml)
-
-            store.dump(args.yaml)
-
         else:
-            entry_old = bibtex_entries.entries[bibtexid]
             print("-> Current entry:", entry_old)
-
             entry = attempt_import([(lambda name, fun: (name, lambda: fun(bibtexid)))(name, fun)
                                     for (name, fun) in METHODS_WITHOUT_OLDENTRY]
                                    + [(lambda name, fun: (name, lambda: fun(bibtexid, entry_old)))(name, fun)
                                       for (name, fun) in METHODS_WITH_OLDENTRY])
 
-            if entry != None:
-                store.entries.append(entry)
-                store.dump(args.yaml)
-
+        if entry != None:
+            store.entries.append(entry)
             store.dump(args.yaml)
+
+        store.dump(args.yaml)
 
 
 if __name__ == '__main__':

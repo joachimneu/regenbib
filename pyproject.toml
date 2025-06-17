@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "regenbib"
-version = "0.0.5"
+version = "0.0.9"
 description = "(Re-)generate tidy .bib files from online sources"
 authors = ["Joachim Neu <jneu@stanford.edu>"]
 license = "GPL-3.0-only"
@@ -14,6 +14,7 @@ keywords = ["latex", "bibtex", "biblatex"]
 [tool.poetry.scripts]
 regenbib = 'regenbib.cli_render:run'
 regenbib-import = 'regenbib.cli_import:run'
+regenbib-scrub = 'regenbib.cli_scrub:run'
 
 
 [tool.poetry.dependencies]
@@ -23,6 +24,8 @@ marshmallow-dataclass = { version = "8.5.14", extras = ["enum", "union"] }
 arxiv = "^1.4.7"
 beautifulsoup4 = "^4.12.2"
 requests = "^2.29.0"
+setuptools = "^75.0.0"
+diskcache = "^5.6.3"
 
 
 [build-system]
