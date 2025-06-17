@@ -111,9 +111,10 @@ See entry types in `regenbib/store.py`:
 * IACR ePrint
 * Raw `.bib` entry
 
-## AI-Assisted Import
 
-`regenbib-import` now supports AI-assisted bibliography import using OpenAI's API. When enabled, this feature uses artificial intelligence to automatically generate optimal search queries for finding bibliographic entries on DBLP.
+## AI-Assisted Import with OpenAI
+
+`regenbib-import-openai` provides advanced AI-assisted bibliography import using OpenAI's structured output and tool capabilities. This is a separate command from the regular `regenbib-import` that leverages artificial intelligence to intelligently search and recommend the most appropriate bibliographic entries.
 
 ### Setup
 
@@ -127,23 +128,42 @@ To use AI-assisted import, you need to:
 
 ### Usage
 
-When running `regenbib-import`, you'll see "ai-assisted" as the first option in the import methods menu:
-
+Run the AI-assisted import with:
+```bash
+regenbib-import-openai
 ```
--> Import method? [0=skip, 1=ai-assisted, 2=dblp-free-search, 3=arxiv-manual-id, 4=eprint-manual-id, 5=ai-assisted, 6=current-entry, 7=dblp-search-title, 8=dblp-search-authorstitle]:
-```
 
-The AI-assisted method will:
-1. Analyze the available bibliographic information (title, authors, year, venue)
-2. Generate multiple optimized search queries using AI
-3. Automatically try each query on DBLP
-4. Present you with the best matches found
+The AI assistant will:
+1. Analyze existing bibliographic information from your .bib file
+2. Use multiple search tools to find relevant entries:
+   - Web search for general information
+   - DBLP database queries
+   - arXiv preprint searches  
+   - IACR ePrint archive searches
+   - Website content reading for additional context
+3. Apply intelligent prioritization rules:
+   - Prefer officially published versions over preprints
+   - For preprints without official publications, prefer direct IACR/arXiv entries over DBLP references
+   - Only use raw BibTeX entries as a last resort
+4. Present up to 5 ranked suggestions with detailed reasoning
+5. Allow you to select the most appropriate entry
 
-This is particularly useful when:
-- You have incomplete or messy bibliographic data
-- Manual searches are not finding the right entries
-- You want to automate the search process
+### Key Features
 
-### How it works
+- **Intelligent Search**: Uses OpenAI's GPT-4 with custom tools to search multiple academic databases
+- **Smart Prioritization**: Automatically prioritizes official publications over preprints
+- **Multi-Source Search**: Searches DBLP, arXiv, IACR ePrint, and the general web
+- **Structured Output**: Provides detailed reasoning for each suggestion
+- **Seamless Integration**: Works with existing .aux, .bib, and .yaml workflow
 
-The AI assistant examines your bibliographic data and creates targeted search queries, similar to how the [blockchain-deadlines chatgpt-updater](https://github.com/blockchain-deadlines/blockchain-deadlines.github.io/blob/main/chatgpt-updater.py) works for conference deadline updates.
+### How It Works
+
+The AI assistant uses OpenAI's tool/function calling capabilities to:
+1. Search DBLP for officially published versions
+2. Query arXiv for preprints and academic papers
+3. Search IACR ePrint for cryptography-related works
+4. Perform web searches for additional context
+5. Read specific websites when promising leads are found
+6. Synthesize all information to provide ranked recommendations
+
+This approach ensures you get the most appropriate and highest-quality bibliographic entries for your references.

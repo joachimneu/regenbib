@@ -14,6 +14,7 @@ keywords = ["latex", "bibtex", "biblatex"]
 [tool.poetry.scripts]
 regenbib = 'regenbib.cli_render:run'
 regenbib-import = 'regenbib.cli_import:run'
+regenbib-import-openai = 'regenbib.cli_import_openai:run'
 regenbib-scrub = 'regenbib.cli_scrub:run'
 
 
