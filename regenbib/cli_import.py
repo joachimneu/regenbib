@@ -151,7 +151,7 @@ def attempt_import(methods):
 
 def run():
     parser = argparse.ArgumentParser(
-        description='Import bibliography entries from DBLP.')
+        description='Import bibliography entries interactively')
     parser.add_argument('--bib', metavar='BIB_FILE', type=str,
                         default='references.bib', help='File name of .bib file')
     parser.add_argument('--aux', metavar='AUX_FILE', type=str,
