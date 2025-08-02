@@ -22,7 +22,9 @@ def _lookup_dblp_by_dblpid(dblpid):
 
 @disk_cache.memoize(expire=60*60*24, tag='arxiv')
 def _lookup_arxiv_by_arxivid(arxivid):
-    return arxiv.Search(id_list=[arxivid])
+    client = arxiv.Client()
+    search = arxiv.Search(id_list=[arxivid])
+    return list(client.results(search))
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_url(url):
@@ -106,8 +108,7 @@ class ArxivEntry:
 
     def render_pybtex_entry(self):
         qid = self.arxivid + (('v' + self.version) if self.version else '')
-        search = _lookup_arxiv_by_arxivid(qid)
-        res = list(search.results())
+        res = _lookup_arxiv_by_arxivid(qid)
         assert len(res) == 1
         entry = res[0]
 
