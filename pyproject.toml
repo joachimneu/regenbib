@@ -21,7 +21,7 @@ regenbib-scrub = 'regenbib.cli_scrub:run'
 python = "^3.10"
 bibtex-dblp = "^0.9"
 marshmallow-dataclass = { version = "8.5.14", extras = ["enum", "union"] }
-arxiv = "^1.4.7"
+arxiv = "^2.2.0"
 beautifulsoup4 = "^4.12.2"
 requests = "^2.29.0"
 setuptools = "^75.0.0"

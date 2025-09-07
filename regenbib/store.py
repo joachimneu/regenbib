@@ -11,9 +11,15 @@ import hashlib
 from diskcache import Cache
 from pathlib import Path
 import os
+import importlib.metadata
+import hashlib
 
 
-disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib')
+REGENBIB_VERSION = importlib.metadata.version('regenbib')
+REGENBIB_VERSION_ID = hashlib.sha256(''.join(str(f.hash) for f in sorted(importlib.metadata.files("regenbib"))).encode('utf-8')).hexdigest()
+
+
+disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib', REGENBIB_VERSION_ID)
 disk_cache = Cache(directory=disk_cache_dir)
 
 @disk_cache.memoize(expire=60*60*24, tag='dblp')
