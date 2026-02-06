@@ -8,7 +8,7 @@ import argparse
 import importlib.util
 import bibtex_dblp.database
 from pybtex.database.output.bibtex import Writer
-from .store import Store, set_delay_dblp, set_delay_arxiv, set_delay_eprint
+from .store import Store, set_delay_dblp, set_delay_arxiv, set_delay_eprint, set_delay_doi
 
 
 def default_render_entry_hook(entry, entry_pybtex):
@@ -90,16 +90,20 @@ def run():
                         default=0, help='Delay in seconds before arXiv lookups (default: 0)')
     parser.add_argument('--delay-eprint', metavar='SECONDS', type=float,
                         default=0, help='Delay in seconds before ePrint lookups (default: 0)')
+    parser.add_argument('--delay-doi', metavar='SECONDS', type=float,
+                        default=0, help='Delay in seconds before DOI lookups (default: 0)')
     args = parser.parse_args()
 
     assert(not args.biblatex_group or args.biblatex)
     assert args.delay_dblp >= 0, "DBLP delay must be non-negative"
     assert args.delay_arxiv >= 0, "arXiv delay must be non-negative"
     assert args.delay_eprint >= 0, "ePrint delay must be non-negative"
+    assert args.delay_doi >= 0, "DOI delay must be non-negative"
 
     set_delay_dblp(args.delay_dblp)
     set_delay_arxiv(args.delay_arxiv)
     set_delay_eprint(args.delay_eprint)
+    set_delay_doi(args.delay_doi)
 
     store = Store.load_or_empty(args.yaml)
     bib = bibtex_dblp.database.parse_bibtex('')

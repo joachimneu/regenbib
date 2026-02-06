@@ -132,6 +132,21 @@ def import_eprint_manualid(bibtexid):
             print("---> Assertion on parsing manual input, retry!")
 
 
+def import_doi_manualid(bibtexid):
+    from .store import DoiEntry
+
+    while True:
+        manual = bibtex_dblp.io.get_user_input(
+            "---> DOI [<empty>=abort]: ")
+        if manual == "":
+            return None
+
+        try:
+            return DoiEntry.from_manual(bibtexid, manual)
+        except AssertionError:
+            print("---> Assertion on parsing manual input, retry!")
+
+
 def attempt_import(methods):
     while True:
         methods_str = ", ".join(
@@ -166,6 +181,7 @@ def run():
         ('dblp-free-search', import_dblp_free_search),
         ('arxiv-manual-id', import_arxiv_manualid),
         ('eprint-manual-id', import_eprint_manualid),
+        ('doi-manual-id', import_doi_manualid),
     ]
 
     METHODS_WITH_OLDENTRY = [

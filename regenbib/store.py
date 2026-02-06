@@ -26,6 +26,7 @@ disk_cache = Cache(directory=disk_cache_dir)
 _delay_dblp = 0
 _delay_arxiv = 0
 _delay_eprint = 0
+_delay_doi = 0
 
 def set_delay_dblp(delay):
     global _delay_dblp
@@ -38,6 +39,10 @@ def set_delay_arxiv(delay):
 def set_delay_eprint(delay):
     global _delay_eprint
     _delay_eprint = delay
+
+def set_delay_doi(delay):
+    global _delay_doi
+    _delay_doi = delay
 
 @disk_cache.memoize(expire=60*60*24, tag='dblp')
 def _lookup_dblp_by_dblpid(dblpid):
@@ -53,6 +58,15 @@ def _lookup_arxiv_by_arxivid(arxivid):
 def _lookup_eprint_by_url(url):
     time.sleep(_delay_eprint)
     return requests.get(url).text
+
+@disk_cache.memoize(expire=60*60*24, tag='doi')
+def _lookup_doi_by_doi(doi):
+    time.sleep(_delay_doi)
+    url = f"https://doi.org/{doi}"
+    headers = {'Accept': 'application/x-bibtex'}
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.text
 
 
 @dataclass
@@ -219,12 +233,52 @@ class EprintEntry:
 
 
 @dataclass
+class DoiEntry:
+    bibtexid: str
+    doi: str
+
+    @classmethod
+    def from_manual(cls, bibtexid, manual: str):
+        slf = cls(bibtexid, "")
+        manual = manual.strip()
+        if manual.lower().startswith('doi:'):
+            manual = manual[4:].strip()
+        if manual.lower().startswith('https://doi.org/'):
+            manual = manual[16:].strip()
+        elif manual.lower().startswith('http://doi.org/'):
+            manual = manual[15:].strip()
+        assert manual
+        slf.doi = manual
+        return slf
+
+    def render_pybtex_entry(self):
+        bibtex_string = _lookup_doi_by_doi(self.doi)
+        data = bibtex_dblp.database.parse_bibtex(bibtex_string)
+        assert len(data.entries) == 1
+        key = list(data.entries.keys())[0]
+        return data.entries[key]
+
+    @property
+    def sortkey_source(self):
+        return self.__class__.__name__
+
+    @property
+    def sortkey_bibtexid(self):
+        return self.bibtexid
+
+    @property
+    def sortkey_contentid(self):
+        return (self.sortkey_source, self.doi)
+
+
+@dataclass
 class Store:
     entries: list[Union[
         RawBibtexEntry,
         DblpEntry,
         ArxivEntry,
         EprintEntry,
+        DoiEntry,
     ]]
 
     def dump(self, filename):
