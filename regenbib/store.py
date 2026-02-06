@@ -57,9 +57,7 @@ def _lookup_arxiv_by_arxivid(arxivid):
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_url(url):
     time.sleep(_delay_eprint)
-    headers = {}
-    if _user_agent_eprint:
-        headers['User-Agent'] = _user_agent_eprint
+    headers = {'User-Agent': _user_agent_eprint} if _user_agent_eprint else None
     return requests.get(url, headers=headers).text
 
 
