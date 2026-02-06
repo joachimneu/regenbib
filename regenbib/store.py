@@ -243,7 +243,7 @@ class DoiEntry:
         manual = manual.strip()
         if manual.lower().startswith('doi:'):
             manual = manual[4:].strip()
-        if manual.lower().startswith('https://doi.org/'):
+        elif manual.lower().startswith('https://doi.org/'):
             manual = manual[16:].strip()
         elif manual.lower().startswith('http://doi.org/'):
             manual = manual[15:].strip()
