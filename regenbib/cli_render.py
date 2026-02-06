@@ -8,7 +8,7 @@ import argparse
 import importlib.util
 import bibtex_dblp.database
 from pybtex.database.output.bibtex import Writer
-from .store import Store, set_delay_dblp, set_delay_arxiv, set_delay_eprint
+from .store import Store, set_delay_dblp, set_delay_arxiv, set_delay_eprint, set_user_agent_eprint
 
 
 def default_render_entry_hook(entry, entry_pybtex):
@@ -90,6 +90,8 @@ def run():
                         default=0, help='Delay in seconds before arXiv lookups (default: 0)')
     parser.add_argument('--delay-eprint', metavar='SECONDS', type=float,
                         default=0, help='Delay in seconds before ePrint lookups (default: 0)')
+    parser.add_argument('--user-agent-eprint', metavar='USER_AGENT', type=str,
+                        default=None, help='User agent string for ePrint lookups (default: requests library default)')
     args = parser.parse_args()
 
     assert(not args.biblatex_group or args.biblatex)
@@ -100,6 +102,7 @@ def run():
     set_delay_dblp(args.delay_dblp)
     set_delay_arxiv(args.delay_arxiv)
     set_delay_eprint(args.delay_eprint)
+    set_user_agent_eprint(args.user_agent_eprint)
 
     store = Store.load_or_empty(args.yaml)
     bib = bibtex_dblp.database.parse_bibtex('')
