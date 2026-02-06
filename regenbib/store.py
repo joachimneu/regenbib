@@ -23,7 +23,6 @@ REGENBIB_VERSION_ID = hashlib.sha256(''.join(str(f.hash) for f in sorted(importl
 disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib', REGENBIB_VERSION_ID)
 disk_cache = Cache(directory=disk_cache_dir)
 
-# Global delay settings (in seconds)
 _delay_dblp = 0
 _delay_arxiv = 0
 _delay_eprint = 0
