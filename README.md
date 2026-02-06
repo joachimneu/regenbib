@@ -109,4 +109,5 @@ See entry types in `regenbib/store.py`:
 * dblp
 * arXiv
 * IACR ePrint
+* DOI (via content negotiation)
 * Raw `.bib` entry
