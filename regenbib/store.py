@@ -13,6 +13,7 @@ from pathlib import Path
 import os
 import importlib.metadata
 import hashlib
+import time
 
 
 REGENBIB_VERSION = importlib.metadata.version('regenbib')
@@ -22,17 +23,52 @@ REGENBIB_VERSION_ID = hashlib.sha256(''.join(str(f.hash) for f in sorted(importl
 disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib', REGENBIB_VERSION_ID)
 disk_cache = Cache(directory=disk_cache_dir)
 
+# Global delay settings (in milliseconds)
+_delay_dblp_ms = 0
+_delay_arxiv_ms = 0
+_delay_eprint_ms = 0
+
+def set_delay_dblp_ms(delay_ms):
+    global _delay_dblp_ms
+    _delay_dblp_ms = delay_ms
+
+def set_delay_arxiv_ms(delay_ms):
+    global _delay_arxiv_ms
+    _delay_arxiv_ms = delay_ms
+
+def set_delay_eprint_ms(delay_ms):
+    global _delay_eprint_ms
+    _delay_eprint_ms = delay_ms
+
+def _fetch_dblp(dblpid):
+    """Actual DBLP fetch with delay"""
+    if _delay_dblp_ms > 0:
+        time.sleep(_delay_dblp_ms / 1000.0)
+    return bibtex_dblp.dblp_api.get_bibtex(dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed)
+
 @disk_cache.memoize(expire=60*60*24, tag='dblp')
 def _lookup_dblp_by_dblpid(dblpid):
-    return bibtex_dblp.dblp_api.get_bibtex(dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed)
+    return _fetch_dblp(dblpid)
+
+def _fetch_arxiv(arxivid):
+    """Actual arXiv fetch with delay"""
+    if _delay_arxiv_ms > 0:
+        time.sleep(_delay_arxiv_ms / 1000.0)
+    return arxiv.Search(id_list=[arxivid])
 
 @disk_cache.memoize(expire=60*60*24, tag='arxiv')
 def _lookup_arxiv_by_arxivid(arxivid):
-    return arxiv.Search(id_list=[arxivid])
+    return _fetch_arxiv(arxivid)
+
+def _fetch_eprint(url):
+    """Actual ePrint fetch with delay"""
+    if _delay_eprint_ms > 0:
+        time.sleep(_delay_eprint_ms / 1000.0)
+    return requests.get(url).text
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_url(url):
-    return requests.get(url).text
+    return _fetch_eprint(url)
 
 
 @dataclass

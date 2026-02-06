@@ -8,7 +8,7 @@ import argparse
 import importlib.util
 import bibtex_dblp.database
 from pybtex.database.output.bibtex import Writer
-from .store import Store
+from .store import Store, set_delay_dblp_ms, set_delay_arxiv_ms, set_delay_eprint_ms
 
 
 def default_render_entry_hook(entry, entry_pybtex):
@@ -84,9 +84,20 @@ def run():
                         default=False, help='Render BibLaTeX instead of BibTeX')
     parser.add_argument('--biblatex-group', action='store_true',
                         default=False, help='Identify and collapse identical entries (BibLaTeX only)')
+    parser.add_argument('--delay-dblp-ms', metavar='MILLISECONDS', type=int,
+                        default=0, help='Delay in milliseconds before DBLP lookups (default: 0)')
+    parser.add_argument('--delay-arxiv-ms', metavar='MILLISECONDS', type=int,
+                        default=0, help='Delay in milliseconds before arXiv lookups (default: 0)')
+    parser.add_argument('--delay-eprint-ms', metavar='MILLISECONDS', type=int,
+                        default=0, help='Delay in milliseconds before ePrint lookups (default: 0)')
     args = parser.parse_args()
 
     assert(not args.biblatex_group or args.biblatex)
+
+    # Set the delays for rate limiting
+    set_delay_dblp_ms(args.delay_dblp_ms)
+    set_delay_arxiv_ms(args.delay_arxiv_ms)
+    set_delay_eprint_ms(args.delay_eprint_ms)
 
     store = Store.load_or_empty(args.yaml)
     bib = bibtex_dblp.database.parse_bibtex('')
