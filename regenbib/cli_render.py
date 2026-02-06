@@ -93,6 +93,9 @@ def run():
     args = parser.parse_args()
 
     assert(not args.biblatex_group or args.biblatex)
+    assert args.delay_dblp >= 0, "DBLP delay must be non-negative"
+    assert args.delay_arxiv >= 0, "arXiv delay must be non-negative"
+    assert args.delay_eprint >= 0, "ePrint delay must be non-negative"
 
     # Set the delays for rate limiting
     set_delay_dblp(args.delay_dblp)
