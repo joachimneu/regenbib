@@ -247,14 +247,14 @@ class DoiEntry:
             manual = manual[16:].strip()
         elif manual.lower().startswith('http://doi.org/'):
             manual = manual[15:].strip()
-        assert manual
+        assert manual, 'DOI cannot be empty'
         slf.doi = manual
         return slf
 
     def render_pybtex_entry(self):
         bibtex_string = _lookup_doi_by_doi(self.doi)
         data = bibtex_dblp.database.parse_bibtex(bibtex_string)
-        assert len(data.entries) == 1
+        assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from DOI, got {len(data.entries)}'
         key = list(data.entries.keys())[0]
         return data.entries[key]
 
