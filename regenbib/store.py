@@ -26,6 +26,7 @@ disk_cache = Cache(directory=disk_cache_dir)
 _delay_dblp = 0
 _delay_arxiv = 0
 _delay_eprint = 0
+_user_agent_eprint = None
 
 def set_delay_dblp(delay):
     global _delay_dblp
@@ -38,6 +39,10 @@ def set_delay_arxiv(delay):
 def set_delay_eprint(delay):
     global _delay_eprint
     _delay_eprint = delay
+
+def set_user_agent_eprint(user_agent):
+    global _user_agent_eprint
+    _user_agent_eprint = user_agent
 
 @disk_cache.memoize(expire=60*60*24, tag='dblp')
 def _lookup_dblp_by_dblpid(dblpid):
@@ -52,7 +57,10 @@ def _lookup_arxiv_by_arxivid(arxivid):
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_url(url):
     time.sleep(_delay_eprint)
-    return requests.get(url).text
+    headers = {}
+    if _user_agent_eprint:
+        headers['User-Agent'] = _user_agent_eprint
+    return requests.get(url, headers=headers).text
 
 
 @dataclass
