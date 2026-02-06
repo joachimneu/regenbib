@@ -13,6 +13,7 @@ from pathlib import Path
 import os
 import importlib.metadata
 import hashlib
+import time
 
 
 REGENBIB_VERSION = importlib.metadata.version('regenbib')
@@ -22,16 +23,35 @@ REGENBIB_VERSION_ID = hashlib.sha256(''.join(str(f.hash) for f in sorted(importl
 disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib', REGENBIB_VERSION_ID)
 disk_cache = Cache(directory=disk_cache_dir)
 
+_delay_dblp = 0
+_delay_arxiv = 0
+_delay_eprint = 0
+
+def set_delay_dblp(delay):
+    global _delay_dblp
+    _delay_dblp = delay
+
+def set_delay_arxiv(delay):
+    global _delay_arxiv
+    _delay_arxiv = delay
+
+def set_delay_eprint(delay):
+    global _delay_eprint
+    _delay_eprint = delay
+
 @disk_cache.memoize(expire=60*60*24, tag='dblp')
 def _lookup_dblp_by_dblpid(dblpid):
+    time.sleep(_delay_dblp)
     return bibtex_dblp.dblp_api.get_bibtex(dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed)
 
 @disk_cache.memoize(expire=60*60*24, tag='arxiv')
 def _lookup_arxiv_by_arxivid(arxivid):
+    time.sleep(_delay_arxiv)
     return arxiv.Search(id_list=[arxivid])
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_url(url):
+    time.sleep(_delay_eprint)
     return requests.get(url).text
 
 
