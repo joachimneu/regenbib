@@ -8,7 +8,7 @@ import argparse
 import importlib.util
 import bibtex_dblp.database
 from pybtex.database.output.bibtex import Writer
-from .store import Store, Config, set_config
+from .store import Store, LookupConfig, set_config
 
 
 def default_render_entry_hook(entry, entry_pybtex):
@@ -104,7 +104,7 @@ def run():
     assert args.delay_eprint >= 0, "ePrint delay must be non-negative"
     assert args.delay_doi >= 0, "DOI delay must be non-negative"
 
-    config = Config()
+    config = LookupConfig()
     config.delay_dblp = args.delay_dblp
     config.delay_arxiv = args.delay_arxiv
     config.delay_eprint = args.delay_eprint

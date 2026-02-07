@@ -24,7 +24,7 @@ disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib', REGENBIB_V
 disk_cache = Cache(directory=disk_cache_dir)
 
 
-class Config:
+class LookupConfig:
     def __init__(self):
         self.delay_dblp = 0
         self.delay_arxiv = 0
@@ -34,7 +34,7 @@ class Config:
         self.user_agent_doi = None
 
 
-_config = Config()
+_config = LookupConfig()
 
 
 def set_config(config):
