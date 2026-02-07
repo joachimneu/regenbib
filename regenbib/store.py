@@ -20,45 +20,51 @@ REGENBIB_VERSION = importlib.metadata.version('regenbib')
 REGENBIB_VERSION_ID = hashlib.sha256(''.join(str(f.hash) for f in sorted(importlib.metadata.files("regenbib"))).encode('utf-8')).hexdigest()
 
 
+class LookupConfig:
+    def __init__(self):
+        self.delay_dblp = 0
+        self.delay_arxiv = 0
+        self.delay_eprint = 0
+        self.delay_doi = 0
+        self.user_agent_eprint = None
+        self.user_agent_doi = None
+
+_lookup_config = LookupConfig()
+
+def set_lookup_config(config):
+    global _lookup_config
+    _lookup_config = config
+
+
 disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib', REGENBIB_VERSION_ID)
 disk_cache = Cache(directory=disk_cache_dir)
-
-_delay_dblp = 0
-_delay_arxiv = 0
-_delay_eprint = 0
-_user_agent_eprint = None
-
-def set_delay_dblp(delay):
-    global _delay_dblp
-    _delay_dblp = delay
-
-def set_delay_arxiv(delay):
-    global _delay_arxiv
-    _delay_arxiv = delay
-
-def set_delay_eprint(delay):
-    global _delay_eprint
-    _delay_eprint = delay
-
-def set_user_agent_eprint(user_agent):
-    global _user_agent_eprint
-    _user_agent_eprint = user_agent
-
+  
 @disk_cache.memoize(expire=60*60*24, tag='dblp')
 def _lookup_dblp_by_dblpid(dblpid):
-    time.sleep(_delay_dblp)
+    time.sleep(_lookup_config.delay_dblp)
     return bibtex_dblp.dblp_api.get_bibtex(dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed)
 
 @disk_cache.memoize(expire=60*60*24, tag='arxiv')
 def _lookup_arxiv_by_arxivid(arxivid):
-    time.sleep(_delay_arxiv)
+    time.sleep(_lookup_config.delay_arxiv)
     return arxiv.Search(id_list=[arxivid])
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_url(url):
-    time.sleep(_delay_eprint)
-    headers = {'User-Agent': _user_agent_eprint} if _user_agent_eprint else None
+    time.sleep(_lookup_config.delay_eprint)
+    headers = {'User-Agent': _lookup_config.user_agent_eprint} if _lookup_config.user_agent_eprint else None
     return requests.get(url, headers=headers).text
+
+@disk_cache.memoize(expire=60*60*24, tag='doi')
+def _lookup_doi_by_doi(doi):
+    time.sleep(_lookup_config.delay_doi)
+    url = f"https://doi.org/{doi}"
+    headers = {'Accept': 'application/x-bibtex'}
+    if _lookup_config.user_agent_doi:
+        headers['User-Agent'] = _lookup_config.user_agent_doi
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.text
 
 
 @dataclass
@@ -225,12 +231,52 @@ class EprintEntry:
 
 
 @dataclass
+class DoiEntry:
+    bibtexid: str
+    doi: str
+
+    @classmethod
+    def from_manual(cls, bibtexid, manual: str):
+        slf = cls(bibtexid, "")
+        manual = manual.strip()
+        if manual.lower().startswith('doi:'):
+            manual = manual[4:].strip()
+        elif manual.lower().startswith('https://doi.org/'):
+            manual = manual[16:].strip()
+        elif manual.lower().startswith('http://doi.org/'):
+            manual = manual[15:].strip()
+        assert manual, 'DOI string is empty after stripping prefixes'
+        slf.doi = manual
+        return slf
+
+    def render_pybtex_entry(self):
+        bibtex_string = _lookup_doi_by_doi(self.doi)
+        data = bibtex_dblp.database.parse_bibtex(bibtex_string)
+        assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from DOI {self.doi}, got {len(data.entries)}'
+        key = list(data.entries.keys())[0]
+        return data.entries[key]
+
+    @property
+    def sortkey_source(self):
+        return self.__class__.__name__
+
+    @property
+    def sortkey_bibtexid(self):
+        return self.bibtexid
+
+    @property
+    def sortkey_contentid(self):
+        return (self.sortkey_source, self.doi)
+
+
+@dataclass
 class Store:
     entries: list[Union[
         RawBibtexEntry,
         DblpEntry,
         ArxivEntry,
         EprintEntry,
+        DoiEntry,
     ]]
 
     def dump(self, filename):

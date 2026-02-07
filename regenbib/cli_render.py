@@ -8,7 +8,7 @@ import argparse
 import importlib.util
 import bibtex_dblp.database
 from pybtex.database.output.bibtex import Writer
-from .store import Store, set_delay_dblp, set_delay_arxiv, set_delay_eprint, set_user_agent_eprint
+from .store import Store, LookupConfig, set_lookup_config
 
 
 def default_render_entry_hook(entry, entry_pybtex):
@@ -90,19 +90,28 @@ def run():
                         default=0, help='Delay in seconds before arXiv lookups (default: 0)')
     parser.add_argument('--delay-eprint', metavar='SECONDS', type=float,
                         default=0, help='Delay in seconds before ePrint lookups (default: 0)')
+    parser.add_argument('--delay-doi', metavar='SECONDS', type=float,
+                        default=0, help='Delay in seconds before DOI lookups (default: 0)')
     parser.add_argument('--user-agent-eprint', metavar='USER_AGENT', type=str,
                         default=None, help='User agent string for ePrint lookups (default: requests library default)')
+    parser.add_argument('--user-agent-doi', metavar='USER_AGENT', type=str,
+                        default=None, help='User agent string for DOI lookups (default: requests library default)')
     args = parser.parse_args()
 
     assert(not args.biblatex_group or args.biblatex)
     assert args.delay_dblp >= 0, "DBLP delay must be non-negative"
     assert args.delay_arxiv >= 0, "arXiv delay must be non-negative"
     assert args.delay_eprint >= 0, "ePrint delay must be non-negative"
+    assert args.delay_doi >= 0, "DOI delay must be non-negative"
 
-    set_delay_dblp(args.delay_dblp)
-    set_delay_arxiv(args.delay_arxiv)
-    set_delay_eprint(args.delay_eprint)
-    set_user_agent_eprint(args.user_agent_eprint)
+    config = LookupConfig()
+    config.delay_dblp = args.delay_dblp
+    config.delay_arxiv = args.delay_arxiv
+    config.delay_eprint = args.delay_eprint
+    config.delay_doi = args.delay_doi
+    config.user_agent_eprint = args.user_agent_eprint
+    config.user_agent_doi = args.user_agent_doi
+    set_lookup_config(config)
 
     store = Store.load_or_empty(args.yaml)
     bib = bibtex_dblp.database.parse_bibtex('')
