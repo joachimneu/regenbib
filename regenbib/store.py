@@ -23,47 +23,47 @@ REGENBIB_VERSION_ID = hashlib.sha256(''.join(str(f.hash) for f in sorted(importl
 disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib', REGENBIB_VERSION_ID)
 disk_cache = Cache(directory=disk_cache_dir)
 
-_delay_dblp = 0
-_delay_arxiv = 0
-_delay_eprint = 0
-_delay_doi = 0
 
-def set_delay_dblp(delay):
-    global _delay_dblp
-    _delay_dblp = delay
+class Config:
+    def __init__(self):
+        self.delay_dblp = 0
+        self.delay_arxiv = 0
+        self.delay_eprint = 0
+        self.delay_doi = 0
+        self.user_agent_eprint = None
+        self.user_agent_doi = None
 
-def set_delay_arxiv(delay):
-    global _delay_arxiv
-    _delay_arxiv = delay
 
-def set_delay_eprint(delay):
-    global _delay_eprint
-    _delay_eprint = delay
+_config = Config()
 
-def set_delay_doi(delay):
-    global _delay_doi
-    _delay_doi = delay
+
+def set_config(config):
+    global _config
+    _config = config
 
 @disk_cache.memoize(expire=60*60*24, tag='dblp')
 def _lookup_dblp_by_dblpid(dblpid):
-    time.sleep(_delay_dblp)
+    time.sleep(_config.delay_dblp)
     return bibtex_dblp.dblp_api.get_bibtex(dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed)
 
 @disk_cache.memoize(expire=60*60*24, tag='arxiv')
 def _lookup_arxiv_by_arxivid(arxivid):
-    time.sleep(_delay_arxiv)
+    time.sleep(_config.delay_arxiv)
     return arxiv.Search(id_list=[arxivid])
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_url(url):
-    time.sleep(_delay_eprint)
-    return requests.get(url).text
+    time.sleep(_config.delay_eprint)
+    headers = {'User-Agent': _config.user_agent_eprint} if _config.user_agent_eprint else None
+    return requests.get(url, headers=headers).text
 
 @disk_cache.memoize(expire=60*60*24, tag='doi')
 def _lookup_doi_by_doi(doi):
-    time.sleep(_delay_doi)
+    time.sleep(_config.delay_doi)
     url = f"https://doi.org/{doi}"
     headers = {'Accept': 'application/x-bibtex'}
+    if _config.user_agent_doi:
+        headers['User-Agent'] = _config.user_agent_doi
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.text
