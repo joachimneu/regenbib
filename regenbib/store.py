@@ -20,10 +20,6 @@ REGENBIB_VERSION = importlib.metadata.version('regenbib')
 REGENBIB_VERSION_ID = hashlib.sha256(''.join(str(f.hash) for f in sorted(importlib.metadata.files("regenbib"))).encode('utf-8')).hexdigest()
 
 
-disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib', REGENBIB_VERSION_ID)
-disk_cache = Cache(directory=disk_cache_dir)
-
-
 class LookupConfig:
     def __init__(self):
         self.delay_dblp = 0
@@ -33,37 +29,39 @@ class LookupConfig:
         self.user_agent_eprint = None
         self.user_agent_doi = None
 
+_lookup_config = LookupConfig()
 
-_config = LookupConfig()
+def set_lookup_config(config):
+    global _lookup_config
+    _lookup_config = config
 
 
-def set_config(config):
-    global _config
-    _config = config
-
+disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib', REGENBIB_VERSION_ID)
+disk_cache = Cache(directory=disk_cache_dir)
+  
 @disk_cache.memoize(expire=60*60*24, tag='dblp')
 def _lookup_dblp_by_dblpid(dblpid):
-    time.sleep(_config.delay_dblp)
+    time.sleep(_lookup_config.delay_dblp)
     return bibtex_dblp.dblp_api.get_bibtex(dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed)
 
 @disk_cache.memoize(expire=60*60*24, tag='arxiv')
 def _lookup_arxiv_by_arxivid(arxivid):
-    time.sleep(_config.delay_arxiv)
+    time.sleep(_lookup_config.delay_arxiv)
     return arxiv.Search(id_list=[arxivid])
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_url(url):
-    time.sleep(_config.delay_eprint)
-    headers = {'User-Agent': _config.user_agent_eprint} if _config.user_agent_eprint else None
+    time.sleep(_lookup_config.delay_eprint)
+    headers = {'User-Agent': _lookup_config.user_agent_eprint} if _lookup_config.user_agent_eprint else None
     return requests.get(url, headers=headers).text
 
 @disk_cache.memoize(expire=60*60*24, tag='doi')
 def _lookup_doi_by_doi(doi):
-    time.sleep(_config.delay_doi)
+    time.sleep(_lookup_config.delay_doi)
     url = f"https://doi.org/{doi}"
     headers = {'Accept': 'application/x-bibtex'}
-    if _config.user_agent_doi:
-        headers['User-Agent'] = _config.user_agent_doi
+    if _lookup_config.user_agent_doi:
+        headers['User-Agent'] = _lookup_config.user_agent_doi
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.text

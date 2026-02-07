@@ -8,7 +8,7 @@ import argparse
 import importlib.util
 import bibtex_dblp.database
 from pybtex.database.output.bibtex import Writer
-from .store import Store, LookupConfig, set_config
+from .store import Store, LookupConfig, set_lookup_config
 
 
 def default_render_entry_hook(entry, entry_pybtex):
@@ -111,7 +111,7 @@ def run():
     config.delay_doi = args.delay_doi
     config.user_agent_eprint = args.user_agent_eprint
     config.user_agent_doi = args.user_agent_doi
-    set_config(config)
+    set_lookup_config(config)
 
     store = Store.load_or_empty(args.yaml)
     bib = bibtex_dblp.database.parse_bibtex('')
