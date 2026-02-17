@@ -25,6 +25,7 @@ class LookupConfig:
         self.delay_arxiv = 0
         self.delay_eprint = 0
         self.delay_doi = 0
+        self.user_agent_arxiv = None
         self.user_agent_eprint = None
         self.user_agent_doi = None
 
@@ -48,9 +49,14 @@ def _lookup_arxiv_by_arxivid(arxivid):
     time.sleep(_lookup_config.delay_arxiv)
     url = f"https://arxiv.org/bibtex/{arxivid}"
     headers = {}
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    return response.text
+    if _lookup_config.user_agent_arxiv:
+        headers['User-Agent'] = _lookup_config.user_agent_arxiv
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.text
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Failed to fetch BibTeX for arXiv ID {arxivid} from {url}: {e}") from e
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_url(url):
