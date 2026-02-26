@@ -164,6 +164,13 @@ class ArxivEntry:
         # Update the entry key to match our bibtexid
         entry.key = self.bibtexid
         
+        # Add _howpublished and _url fields to match original behavior
+        # These fields are not in arXiv's BibTeX but were in the original implementation
+        eprint = entry.fields.get('eprint', qid)
+        primary_class = entry.fields.get('primaryclass', entry.fields.get('primaryClass', ''))
+        entry.fields['_howpublished'] = f"arXiv:{eprint}" + (f" [{primary_class}]" if primary_class else "")
+        entry.fields['_url'] = f"https://arxiv.org/abs/{qid}"
+        
         return entry
 
     @property
