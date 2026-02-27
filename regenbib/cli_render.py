@@ -96,73 +96,84 @@ def run():
                         default=None, help='User agent string for ePrint lookups (default: requests library default)')
     parser.add_argument('--user-agent-doi', metavar='USER_AGENT', type=str,
                         default=None, help='User agent string for DOI lookups (default: requests library default)')
+    parser.add_argument('--debug', action='store_true',
+                        default=False, help='Drop into pdb debugger on unexpected exceptions')
     args = parser.parse_args()
 
-    assert(not args.biblatex_group or args.biblatex)
-    assert args.delay_dblp >= 0, "DBLP delay must be non-negative"
-    assert args.delay_arxiv >= 0, "arXiv delay must be non-negative"
-    assert args.delay_eprint >= 0, "ePrint delay must be non-negative"
-    assert args.delay_doi >= 0, "DOI delay must be non-negative"
+    try:
+        assert(not args.biblatex_group or args.biblatex)
+        assert args.delay_dblp >= 0, "DBLP delay must be non-negative"
+        assert args.delay_arxiv >= 0, "arXiv delay must be non-negative"
+        assert args.delay_eprint >= 0, "ePrint delay must be non-negative"
+        assert args.delay_doi >= 0, "DOI delay must be non-negative"
 
-    config = LookupConfig()
-    config.delay_dblp = args.delay_dblp
-    config.delay_arxiv = args.delay_arxiv
-    config.delay_eprint = args.delay_eprint
-    config.delay_doi = args.delay_doi
-    config.user_agent_eprint = args.user_agent_eprint
-    config.user_agent_doi = args.user_agent_doi
-    set_lookup_config(config)
+        config = LookupConfig()
+        config.delay_dblp = args.delay_dblp
+        config.delay_arxiv = args.delay_arxiv
+        config.delay_eprint = args.delay_eprint
+        config.delay_doi = args.delay_doi
+        config.user_agent_eprint = args.user_agent_eprint
+        config.user_agent_doi = args.user_agent_doi
+        set_lookup_config(config)
 
-    store = Store.load_or_empty(args.yaml)
-    bib = bibtex_dblp.database.parse_bibtex('')
-    cfgpy = load_cfgpy(args.cfgpy)
+        store = Store.load_or_empty(args.yaml)
+        bib = bibtex_dblp.database.parse_bibtex('')
+        cfgpy = load_cfgpy(args.cfgpy)
 
-    entries = []
+        entries = []
 
-    for entry in store.entries:
-        print(entry)
-        entry_pybtex = entry.render_pybtex_entry()
-        (entry, entry_pybtex) = cfgpy['render_entry_hook'](copy.deepcopy(entry), copy.deepcopy(entry_pybtex))
-        entry_contentid = hashlib.sha256(repr(entry.sortkey_contentid).encode()).hexdigest()
-        print(entry_pybtex)
-        entries.append((entry_contentid, entry, entry_pybtex))
+        for entry in store.entries:
+            print(entry)
+            entry_pybtex = entry.render_pybtex_entry()
+            (entry, entry_pybtex) = cfgpy['render_entry_hook'](copy.deepcopy(entry), copy.deepcopy(entry_pybtex))
+            entry_contentid = hashlib.sha256(repr(entry.sortkey_contentid).encode()).hexdigest()
+            print(entry_pybtex)
+            entries.append((entry_contentid, entry, entry_pybtex))
 
-    if args.biblatex_group:
-        new_entries = {}
+        if args.biblatex_group:
+            new_entries = {}
 
-        for (entry_contentid, entry, entry_pybtex) in entries:
-            if not entry_contentid in new_entries.keys():
+            for (entry_contentid, entry, entry_pybtex) in entries:
+                if not entry_contentid in new_entries.keys():
+                    entry_pybtex.rawlists = getattr(entry_pybtex, 'rawlists', {})
+                    entry_pybtex.rawlists['ids'] = entry_pybtex.rawlists.get('ids', [])
+                    new_entries[entry_contentid] = (entry_contentid, entry, entry_pybtex)
+                
+                new_entries[entry_contentid][2].rawlists['ids'].append(entry.bibtexid)
+
+            entries = list(new_entries.values())
+
+        if args.biblatex:
+            # Biblatex rendering
+            for (entry_contentid, entry, entry_pybtex) in entries:
                 entry_pybtex.rawlists = getattr(entry_pybtex, 'rawlists', {})
                 entry_pybtex.rawlists['ids'] = entry_pybtex.rawlists.get('ids', [])
-                new_entries[entry_contentid] = (entry_contentid, entry, entry_pybtex)
-            
-            new_entries[entry_contentid][2].rawlists['ids'].append(entry.bibtexid)
+                entry_pybtex.rawlists['ids'].append(entry.bibtexid)
+                entry_pybtex.rawlists['ids'] = list(set(entry_pybtex.rawlists['ids']))
+                entry_pybtex.rawlists['ids'].sort()
+                cnt = -1
+                primary_bibtexid = None
+                while True:
+                    cnt += 1
+                    primary_bibtexid = 'reference_' + entry_contentid + '_' + str(cnt)
+                    if not primary_bibtexid in bib.entries.keys():
+                        break
+                bib.entries[primary_bibtexid] = entry_pybtex
+            MyBiblatexWriter().write_file(bib, args.bib)
 
-        entries = list(new_entries.values())
-
-    if args.biblatex:
-        # Biblatex rendering
-        for (entry_contentid, entry, entry_pybtex) in entries:
-            entry_pybtex.rawlists = getattr(entry_pybtex, 'rawlists', {})
-            entry_pybtex.rawlists['ids'] = entry_pybtex.rawlists.get('ids', [])
-            entry_pybtex.rawlists['ids'].append(entry.bibtexid)
-            entry_pybtex.rawlists['ids'] = list(set(entry_pybtex.rawlists['ids']))
-            entry_pybtex.rawlists['ids'].sort()
-            cnt = -1
-            primary_bibtexid = None
-            while True:
-                cnt += 1
-                primary_bibtexid = 'reference_' + entry_contentid + '_' + str(cnt)
-                if not primary_bibtexid in bib.entries.keys():
-                    break
-            bib.entries[primary_bibtexid] = entry_pybtex
-        MyBiblatexWriter().write_file(bib, args.bib)
-
-    else:
-        # Bibtex rendering
-        for (entry_contentid, entry, entry_pybtex) in entries:
-            bib.entries[entry.bibtexid] = entry_pybtex
-        bibtex_dblp.database.write_to_file(bib, args.bib)
+        else:
+            # Bibtex rendering
+            for (entry_contentid, entry, entry_pybtex) in entries:
+                bib.entries[entry.bibtexid] = entry_pybtex
+            bibtex_dblp.database.write_to_file(bib, args.bib)
+    except Exception:
+        if args.debug:
+            import pdb
+            import traceback
+            traceback.print_exc()
+            pdb.post_mortem()
+        else:
+            raise
 
 
 if __name__ == '__main__':
