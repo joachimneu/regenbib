@@ -62,13 +62,20 @@ def _lookup_eprint_by_eprintid(eprintid):
     
     sickle = Sickle(oai_endpoint, **sickle_kwargs)
     
-    _ = sickle.GetRecord(identifier=oai_identifier, metadataPrefix='oai_dc')
+    record = sickle.GetRecord(identifier=oai_identifier, metadataPrefix='oai_dc')
     
-    bibtex_url = f'https://eprint.iacr.org/eprint-bin/cite.pl?entry={eprintid}'
-    headers = {'User-Agent': _lookup_config.user_agent_eprint} if _lookup_config.user_agent_eprint else None
-    response = requests.get(bibtex_url, headers=headers)
-    response.raise_for_status()
-    return response.text
+    if 'bibtex' in record.metadata:
+        return record.metadata['bibtex'][0]
+    
+    bibtex_elem = record.xml.find('.//{http://eprint.iacr.org}bibtex')
+    if bibtex_elem is not None and bibtex_elem.text:
+        return bibtex_elem.text
+    
+    bibtex_elem = record.xml.find('.//bibtex')
+    if bibtex_elem is not None and bibtex_elem.text:
+        return bibtex_elem.text
+    
+    raise ValueError(f"Could not extract BibTeX from OAI record for {eprintid}")
 
 @disk_cache.memoize(expire=60*60*24, tag='doi')
 def _lookup_doi_by_doi(doi):
