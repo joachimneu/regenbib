@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 import argparse
-from .store import Store, disk_cache
+from .store import Store, disk_cache, get_arxiv_current_version, ArxivEntry
 
 
 def run():
@@ -18,6 +18,10 @@ def run():
     subparser_dedup = subparsers.add_parser('dedup', help='Deduplicate .yaml file')
 
     subparser_rmcache = subparsers.add_parser('rmcache', help='Clear cached metadata')
+    
+    subparser_freeze_arxiv = subparsers.add_parser('freeze-arxiv', help='Set explicit versions for arXiv entries')
+    subparser_freeze_arxiv.add_argument('entry_ids', metavar='ENTRY_ID', nargs='*', 
+                                        help='BibTeX IDs of entries to freeze (if not provided, all arXiv entries are frozen)')
 
     args = parser.parse_args()
 
@@ -38,6 +42,31 @@ def run():
             disk_cache.clear()
             print("Post-clear", "stats (hits, misses):", disk_cache.stats())
             print("Post-clear", "check (warnings):", disk_cache.check())
+        
+        elif args.command == 'freeze-arxiv':
+            entry_ids = set(args.entry_ids) if args.entry_ids else None
+            
+            for entry in store.entries:
+                if entry_ids is not None and entry.bibtexid not in entry_ids:
+                    continue
+                
+                if not isinstance(entry, ArxivEntry):
+                    if entry_ids is not None and entry.bibtexid in entry_ids:
+                        raise ValueError(f"Entry '{entry.bibtexid}' is not an arXiv entry")
+                    continue
+                
+                if entry.version:
+                    print(f"Skipping {entry.bibtexid}: version already set to v{entry.version}")
+                    continue
+                
+                print(f"Freezing {entry.bibtexid} (arXiv:{entry.arxivid})...", end=" ")
+                try:
+                    current_version = get_arxiv_current_version(entry.arxivid)
+                    entry.version = current_version
+                    print(f"set to v{current_version}")
+                except Exception as e:
+                    print(f"FAILED: {e}")
+                    raise
 
         store.dump(args.yaml)
     except Exception:

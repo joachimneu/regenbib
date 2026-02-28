@@ -109,6 +109,23 @@ def _lookup_doi_by_doi(doi):
     response.raise_for_status()
     return response.text
 
+def get_arxiv_current_version(arxivid):
+    bibtex_string = _lookup_arxiv_by_arxivid(arxivid)
+    data = bibtex_dblp.database.parse_bibtex(bibtex_string)
+    assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from arXiv {arxivid}, got {len(data.entries)}'
+    key = list(data.entries.keys())[0]
+    entry = data.entries[key]
+    
+    eprint = entry.fields.get('eprint', '')
+    if not eprint:
+        raise RuntimeError(f"No eprint field found in BibTeX for arXiv ID {arxivid}")
+    
+    if 'v' in eprint:
+        _, version = eprint.rsplit('v', 1)
+        return version
+    else:
+        raise RuntimeError(f"No version found in eprint field '{eprint}' for arXiv ID {arxivid}")
+
 
 @dataclass
 class RawBibtexEntry:
