@@ -64,18 +64,23 @@ def _lookup_eprint_by_eprintid(eprintid):
     
     record = sickle.GetRecord(identifier=oai_identifier, metadataPrefix='oai_dc')
     
-    if 'bibtex' in record.metadata and record.metadata['bibtex']:
-        return record.metadata['bibtex'][0]
+    metadata = record.metadata
     
-    bibtex_elem = record.xml.find('.//{http://eprint.iacr.org}bibtex')
-    if bibtex_elem is not None and bibtex_elem.text:
-        return bibtex_elem.text
+    authors = ' and '.join(metadata.get('creator', []))
+    title = metadata.get('title', [''])[0]
+    year = eprintid.split('/')[0]
+    bibtex_key = f'cryptoeprint:{eprintid.replace("/", ":")}'
     
-    bibtex_elem = record.xml.find('.//bibtex')
-    if bibtex_elem is not None and bibtex_elem.text:
-        return bibtex_elem.text
+    bibtex = f"""@misc{{{bibtex_key},
+    author = {{{authors}}},
+    title = {{{title}}},
+    year = {{{year}}},
+    note = {{\\url{{https://eprint.iacr.org/{eprintid}}}}},
+    howpublished = {{Cryptology ePrint Archive, Paper {eprintid}}},
+    url = {{https://eprint.iacr.org/{eprintid}}}
+}}"""
     
-    raise ValueError(f"Could not extract BibTeX from OAI record for {eprintid}")
+    return bibtex
 
 @disk_cache.memoize(expire=60*60*24, tag='doi')
 def _lookup_doi_by_doi(doi):
