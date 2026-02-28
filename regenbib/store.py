@@ -13,6 +13,7 @@ import os
 import importlib.metadata
 import hashlib
 import time
+import re
 
 
 REGENBIB_VERSION = importlib.metadata.version('regenbib')
@@ -110,7 +111,7 @@ def _lookup_doi_by_doi(doi):
     return response.text
 
 def get_arxiv_current_version(arxivid):
-    url = f"http://export.arxiv.org/api/query?id_list={arxivid}"
+    url = f"https://export.arxiv.org/api/query?id_list={arxivid}"
     headers = {}
     if _lookup_config.user_agent_arxiv:
         headers['User-Agent'] = _lookup_config.user_agent_arxiv
@@ -120,7 +121,6 @@ def get_arxiv_current_version(arxivid):
         response.raise_for_status()
         xml_content = response.text
         
-        import re
         match = re.search(r'<id>http://arxiv\.org/abs/[^<]+v(\d+)</id>', xml_content)
         if match:
             return match.group(1)
@@ -216,9 +216,8 @@ class ArxivEntry:
         entry.key = self.bibtexid
         
         eprint = entry.fields.get('eprint', self.arxivid)
-        if self.version:
-            if 'v' not in eprint:
-                eprint = f"{eprint}v{self.version}"
+        if self.version and not re.search(r'\.\d+v\d+$', eprint):
+            eprint = f"{eprint}v{self.version}"
         
         entry.fields['eprint'] = eprint
         
