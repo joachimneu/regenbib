@@ -110,21 +110,24 @@ def _lookup_doi_by_doi(doi):
     return response.text
 
 def get_arxiv_current_version(arxivid):
-    bibtex_string = _lookup_arxiv_by_arxivid(arxivid)
-    data = bibtex_dblp.database.parse_bibtex(bibtex_string)
-    assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from arXiv {arxivid}, got {len(data.entries)}'
-    key = list(data.entries.keys())[0]
-    entry = data.entries[key]
+    url = f"http://export.arxiv.org/api/query?id_list={arxivid}"
+    headers = {}
+    if _lookup_config.user_agent_arxiv:
+        headers['User-Agent'] = _lookup_config.user_agent_arxiv
     
-    eprint = entry.fields.get('eprint', '')
-    if not eprint:
-        raise RuntimeError(f"Missing or empty eprint field in BibTeX for arXiv ID {arxivid}")
-    
-    if 'v' in eprint:
-        _, version = eprint.rsplit('v', 1)
-        return version
-    else:
-        raise RuntimeError(f"No version found in eprint field '{eprint}' for arXiv ID {arxivid}")
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        xml_content = response.text
+        
+        import re
+        match = re.search(r'<id>http://arxiv\.org/abs/[^<]+v(\d+)</id>', xml_content)
+        if match:
+            return match.group(1)
+        else:
+            raise RuntimeError(f"Could not extract version from arXiv API response for {arxivid}")
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Failed to fetch arXiv metadata for {arxivid} from {url}: {e}") from e
 
 
 @dataclass
@@ -203,23 +206,26 @@ class ArxivEntry:
         return slf
 
     def render_pybtex_entry(self):
-        qid = self.arxivid + (('v' + self.version) if self.version else '')
-        bibtex_string = _lookup_arxiv_by_arxivid(qid)
+        bibtex_string = _lookup_arxiv_by_arxivid(self.arxivid)
         
-        # Parse the BibTeX returned from arXiv
         data = bibtex_dblp.database.parse_bibtex(bibtex_string)
-        assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from arXiv {qid}, got {len(data.entries)}'
+        assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from arXiv {self.arxivid}, got {len(data.entries)}'
         key = list(data.entries.keys())[0]
         entry = data.entries[key]
         
-        # Update the entry key to match our bibtexid
         entry.key = self.bibtexid
         
-        # Add _howpublished and _url fields to match original behavior
-        # These fields are not in arXiv's BibTeX but were in the original implementation
-        eprint = entry.fields.get('eprint', qid)
+        eprint = entry.fields.get('eprint', self.arxivid)
+        if self.version:
+            if 'v' not in eprint:
+                eprint = f"{eprint}v{self.version}"
+        
+        entry.fields['eprint'] = eprint
+        
         primary_class = entry.fields.get('primaryclass', entry.fields.get('primaryClass', ''))
         entry.fields['_howpublished'] = f"arXiv:{eprint}" + (f" [{primary_class}]" if primary_class else "")
+        
+        qid = self.arxivid + (('v' + self.version) if self.version else '')
         entry.fields['_url'] = f"https://arxiv.org/abs/{qid}"
         
         return entry
