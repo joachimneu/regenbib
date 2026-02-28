@@ -110,7 +110,9 @@ def _lookup_doi_by_doi(doi):
     response.raise_for_status()
     return response.text
 
-def get_arxiv_current_version(arxivid):
+@disk_cache.memoize(expire=60*60*24, tag='arxiv_version')
+def _lookup_arxiv_version_by_arxivid(arxivid):
+    time.sleep(_lookup_config.delay_arxiv)
     url = f"https://export.arxiv.org/api/query?id_list={arxivid}"
     headers = {}
     if _lookup_config.user_agent_arxiv:
@@ -128,6 +130,9 @@ def get_arxiv_current_version(arxivid):
             raise RuntimeError(f"Could not extract version from arXiv API response for {arxivid}")
     except requests.exceptions.RequestException as e:
         raise RuntimeError(f"Failed to fetch arXiv metadata for {arxivid} from {url}: {e}") from e
+
+def get_arxiv_current_version(arxivid):
+    return _lookup_arxiv_version_by_arxivid(arxivid)
 
 
 @dataclass
@@ -206,17 +211,20 @@ class ArxivEntry:
         return slf
 
     def render_pybtex_entry(self):
-        bibtex_string = _lookup_arxiv_by_arxivid(self.arxivid)
+        version = 'v' + self.version if self.version else ''
+        qid = self.arxivid + version
+        bibtex_string = _lookup_arxiv_by_arxivid(qid)
         
         data = bibtex_dblp.database.parse_bibtex(bibtex_string)
-        assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from arXiv {self.arxivid}, got {len(data.entries)}'
+        assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from arXiv {qid}, got {len(data.entries)}'
         key = list(data.entries.keys())[0]
         entry = data.entries[key]
         
         entry.key = self.bibtexid
         
         eprint = entry.fields.get('eprint', self.arxivid)
-        if self.version and not re.search(r'\.\d+v\d+$', eprint):
+        assert not re.search(r'\.\d+v\d+$', eprint), f"arXiv backend returned version in eprint field: {eprint}"
+        if self.version:
             eprint = f"{eprint}v{self.version}"
         
         entry.fields['eprint'] = eprint
@@ -224,7 +232,6 @@ class ArxivEntry:
         primary_class = entry.fields.get('primaryclass', entry.fields.get('primaryClass', ''))
         entry.fields['_howpublished'] = f"arXiv:{eprint}" + (f" [{primary_class}]" if primary_class else "")
         
-        qid = self.arxivid + (('v' + self.version) if self.version else '')
         entry.fields['_url'] = f"https://arxiv.org/abs/{qid}"
         
         return entry
