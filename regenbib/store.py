@@ -66,8 +66,18 @@ def _lookup_eprint_by_eprintid(eprintid):
     
     metadata = record.metadata
     
-    authors = ' and '.join(metadata.get('creator', []))
-    title = metadata.get('title', [''])[0]
+    creators = metadata.get('creator', [])
+    if not creators:
+        raise ValueError(f"No authors found in OAI record for {eprintid}")
+    authors = ' and '.join(creators)
+    
+    titles = metadata.get('title', [])
+    if not titles or not titles[0]:
+        raise ValueError(f"No title found in OAI record for {eprintid}")
+    title = titles[0]
+    
+    if '/' not in eprintid:
+        raise ValueError(f"Invalid ePrint ID format: {eprintid} (expected YEAR/NUMBER)")
     year = eprintid.split('/')[0]
     bibtex_key = f'cryptoeprint:{eprintid.replace("/", ":")}'
     
