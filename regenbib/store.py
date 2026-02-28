@@ -6,7 +6,7 @@ import bibtex_dblp.dblp_api
 import bibtex_dblp.database
 import arxiv
 import requests
-from bs4 import BeautifulSoup
+from sickle import Sickle
 import hashlib
 from diskcache import Cache
 from pathlib import Path
@@ -50,10 +50,25 @@ def _lookup_arxiv_by_arxivid(arxivid):
     return arxiv.Search(id_list=[arxivid])
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
-def _lookup_eprint_by_url(url):
+def _lookup_eprint_by_eprintid(eprintid):
     time.sleep(_lookup_config.delay_eprint)
+    
+    oai_endpoint = 'https://eprint.iacr.org/oai'
+    oai_identifier = f'oai:eprint.iacr.org:{eprintid}'
+    
+    sickle_kwargs = {}
+    if _lookup_config.user_agent_eprint:
+        sickle_kwargs['headers'] = {'User-Agent': _lookup_config.user_agent_eprint}
+    
+    sickle = Sickle(oai_endpoint, **sickle_kwargs)
+    
+    record = sickle.GetRecord(identifier=oai_identifier, metadataPrefix='oai_dc')
+    
+    bibtex_url = f'https://eprint.iacr.org/eprint-bin/cite.pl?entry={eprintid}'
     headers = {'User-Agent': _lookup_config.user_agent_eprint} if _lookup_config.user_agent_eprint else None
-    return requests.get(url, headers=headers).text
+    response = requests.get(bibtex_url, headers=headers)
+    response.raise_for_status()
+    return response.text
 
 @disk_cache.memoize(expire=60*60*24, tag='doi')
 def _lookup_doi_by_doi(doi):
@@ -208,11 +223,8 @@ class EprintEntry:
         return slf
 
     def render_pybtex_entry(self):
-        url = "https://eprint.iacr.org/" + self.eprintid
-        soup = BeautifulSoup(_lookup_eprint_by_url(url), features="html.parser")
-
-        data = bibtex_dblp.database.parse_bibtex(
-            soup.select("#bibtex")[0].text)
+        bibtex_text = _lookup_eprint_by_eprintid(self.eprintid)
+        data = bibtex_dblp.database.parse_bibtex(bibtex_text)
         assert len(data.entries) == 1
         key = list(data.entries.keys())[0]
         return data.entries[key]
