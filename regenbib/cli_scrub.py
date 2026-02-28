@@ -74,6 +74,8 @@ def run():
                 return
 
         store.dump(args.yaml)
+
+        
     except Exception:
         if args.fail_to_pdb:
             import pdb

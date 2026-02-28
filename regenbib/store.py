@@ -90,13 +90,15 @@ def _lookup_eprint_by_eprintid(eprintid):
     assert year.isdigit() and len(year) == 4, f"Invalid year in ePrint ID: {eprintid} (expected 4-digit year)"
     bibtex_key = f'cryptoeprint:{eprintid}'
     
-    bibtex = f"""@misc{{{bibtex_key},
-      author = {{{authors}}},
-      title = {{{title}}},
-      howpublished = {{Cryptology {{ePrint}} Archive, Paper {eprintid}}},
-      year = {{{year}}},
-      url = {{https://eprint.iacr.org/{eprintid}}}
-}}"""
+    bibtex = f"""
+        @misc{{{bibtex_key},
+            author = {{{authors}}},
+            title = {{{title}}},
+            howpublished = {{Cryptology {{ePrint}} Archive, Paper {eprintid}}},
+            year = {{{year}}},
+            url = {{https://eprint.iacr.org/{eprintid}}}
+        }}
+    """
     
     return bibtex
 
