@@ -64,7 +64,7 @@ def _lookup_eprint_by_eprintid(eprintid):
     
     record = sickle.GetRecord(identifier=oai_identifier, metadataPrefix='oai_dc')
     
-    if 'bibtex' in record.metadata:
+    if 'bibtex' in record.metadata and record.metadata['bibtex']:
         return record.metadata['bibtex'][0]
     
     bibtex_elem = record.xml.find('.//{http://eprint.iacr.org}bibtex')
