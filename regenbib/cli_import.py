@@ -173,7 +173,7 @@ def run():
                         default='_build/main.aux', help='File name of .aux file')
     parser.add_argument('--yaml', metavar='YAML_FILE', type=str,
                         default='references.yaml', help='File name of .yaml file')
-    parser.add_argument('--laxpybteximport', action='store_true',
+    parser.add_argument('--lax-pybtex-import', action='store_true',
                         default=False, help='Disable strict mode of pybtex for .bib import')
     parser.add_argument('--fail-to-pdb', action='store_true',
                         default=False, help='Drop into pdb debugger on unexpected exceptions')
@@ -217,7 +217,7 @@ def run():
 
         store = Store.load_or_empty(args.yaml)
 
-        if args.laxpybteximport:
+        if args.lax_pybtex_import:
             set_strict_mode(False)
         bibtex_entries = bibtex_dblp.database.load_from_file(args.bib)
         set_strict_mode()
@@ -261,6 +261,8 @@ def run():
                 store.dump(args.yaml)
 
             store.dump(args.yaml)
+
+            
     except Exception:
         if args.fail_to_pdb:
             import pdb

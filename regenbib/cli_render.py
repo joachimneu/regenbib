@@ -169,6 +169,8 @@ def run():
             for (entry_contentid, entry, entry_pybtex) in entries:
                 bib.entries[entry.bibtexid] = entry_pybtex
             bibtex_dblp.database.write_to_file(bib, args.bib)
+
+            
     except Exception:
         if args.fail_to_pdb:
             import pdb

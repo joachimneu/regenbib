@@ -40,6 +40,8 @@ def run():
             print("Post-clear", "check (warnings):", disk_cache.check())
 
         store.dump(args.yaml)
+
+        
     except Exception:
         if args.fail_to_pdb:
             import pdb

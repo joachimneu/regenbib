@@ -88,13 +88,15 @@ def _lookup_eprint_by_eprintid(eprintid):
     assert year.isdigit() and len(year) == 4, f"Invalid year in ePrint ID: {eprintid} (expected 4-digit year)"
     bibtex_key = f'cryptoeprint:{eprintid}'
     
-    bibtex = f"""@misc{{{bibtex_key},
-      author = {{{authors}}},
-      title = {{{title}}},
-      howpublished = {{Cryptology {{ePrint}} Archive, Paper {eprintid}}},
-      year = {{{year}}},
-      url = {{https://eprint.iacr.org/{eprintid}}}
-}}"""
+    bibtex = f"""
+        @misc{{{bibtex_key},
+            author = {{{authors}}},
+            title = {{{title}}},
+            howpublished = {{Cryptology {{ePrint}} Archive, Paper {eprintid}}},
+            year = {{{year}}},
+            url = {{https://eprint.iacr.org/{eprintid}}}
+        }}
+    """
     
     return bibtex
 
@@ -189,17 +191,13 @@ class ArxivEntry:
         qid = self.arxivid + (('v' + self.version) if self.version else '')
         bibtex_string = _lookup_arxiv_by_arxivid(qid)
         
-        # Parse the BibTeX returned from arXiv
         data = bibtex_dblp.database.parse_bibtex(bibtex_string)
         assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from arXiv {qid}, got {len(data.entries)}'
         key = list(data.entries.keys())[0]
         entry = data.entries[key]
         
-        # Update the entry key to match our bibtexid
         entry.key = self.bibtexid
         
-        # Add _howpublished and _url fields to match original behavior
-        # These fields are not in arXiv's BibTeX but were in the original implementation
         eprint = entry.fields.get('eprint', qid)
         primary_class = entry.fields.get('primaryclass', entry.fields.get('primaryClass', ''))
         entry.fields['_howpublished'] = f"arXiv:{eprint}" + (f" [{primary_class}]" if primary_class else "")
