@@ -79,6 +79,8 @@ def _lookup_eprint_by_eprintid(eprintid):
     if '/' not in eprintid:
         raise ValueError(f"Invalid ePrint ID format: {eprintid} (expected YEAR/NUMBER)")
     year = eprintid.split('/')[0]
+    if not year.isdigit() or len(year) != 4:
+        raise ValueError(f"Invalid year in ePrint ID: {eprintid} (expected 4-digit year)")
     bibtex_key = f'cryptoeprint:{eprintid.replace("/", ":")}'
     
     bibtex = f"""@misc{{{bibtex_key},
