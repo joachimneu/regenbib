@@ -62,7 +62,7 @@ def _lookup_eprint_by_eprintid(eprintid):
     
     sickle = Sickle(oai_endpoint, **sickle_kwargs)
     
-    record = sickle.GetRecord(identifier=oai_identifier, metadataPrefix='oai_dc')
+    _ = sickle.GetRecord(identifier=oai_identifier, metadataPrefix='oai_dc')
     
     bibtex_url = f'https://eprint.iacr.org/eprint-bin/cite.pl?entry={eprintid}'
     headers = {'User-Agent': _lookup_config.user_agent_eprint} if _lookup_config.user_agent_eprint else None
