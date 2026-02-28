@@ -67,29 +67,24 @@ def _lookup_eprint_by_eprintid(eprintid):
     metadata = record.metadata
     
     creators = metadata.get('creator', [])
-    if not creators:
-        raise ValueError(f"No authors found in OAI record for {eprintid}")
+    assert creators, f"No authors found in OAI record for {eprintid}"
     authors = ' and '.join(creators)
     
     titles = metadata.get('title', [])
-    if not titles or not titles[0]:
-        raise ValueError(f"No title found in OAI record for {eprintid}")
+    assert titles and titles[0], f"No title found in OAI record for {eprintid}"
     title = titles[0]
     
-    if '/' not in eprintid:
-        raise ValueError(f"Invalid ePrint ID format: {eprintid} (expected YEAR/NUMBER)")
+    assert '/' in eprintid, f"Invalid ePrint ID format: {eprintid} (expected YEAR/NUMBER)"
     year = eprintid.split('/')[0]
-    if not year.isdigit() or len(year) != 4:
-        raise ValueError(f"Invalid year in ePrint ID: {eprintid} (expected 4-digit year)")
-    bibtex_key = f'cryptoeprint:{eprintid.replace("/", ":")}'
+    assert year.isdigit() and len(year) == 4, f"Invalid year in ePrint ID: {eprintid} (expected 4-digit year)"
+    bibtex_key = f'cryptoeprint:{eprintid}'
     
     bibtex = f"""@misc{{{bibtex_key},
-    author = {{{authors}}},
-    title = {{{title}}},
-    year = {{{year}}},
-    note = {{\\url{{https://eprint.iacr.org/{eprintid}}}}},
-    howpublished = {{Cryptology ePrint Archive, Paper {eprintid}}},
-    url = {{https://eprint.iacr.org/{eprintid}}}
+      author = {{{authors}}},
+      title = {{{title}}},
+      howpublished = {{Cryptology {{ePrint}} Archive, Paper {eprintid}}},
+      year = {{{year}}},
+      url = {{https://eprint.iacr.org/{eprintid}}}
 }}"""
     
     return bibtex
