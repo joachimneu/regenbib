@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "regenbib"
-version = "0.0.9"
+version = "0.0.10"
 description = "(Re-)generate tidy .bib files from online sources"
 authors = ["Joachim Neu <jneu@stanford.edu>"]
 license = "GPL-3.0-only"
@@ -22,10 +22,10 @@ python = "^3.10"
 bibtex-dblp = "^0.9"
 marshmallow-dataclass = { version = "8.5.14", extras = ["enum", "union"] }
 arxiv = "^2.2.0"
-beautifulsoup4 = "^4.12.2"
 requests = "^2.29.0"
 setuptools = "^75.0.0"
 diskcache = "^5.6.3"
+Sickle = "^0.7.0"
 
 
 [build-system]
