@@ -53,7 +53,7 @@ def run():
                 
                 if not isinstance(entry, ArxivEntry):
                     if entry_ids is not None and entry.bibtexid in entry_ids:
-                        raise ValueError(f"Entry '{entry.bibtexid}' is not an arXiv entry")
+                        assert False, f"Entry '{entry.bibtexid}' is not an arXiv entry"
                     continue
                 
                 if entry.version:
