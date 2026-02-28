@@ -4,7 +4,6 @@ from marshmallow_dataclass import dataclass
 import pybtex.database
 import bibtex_dblp.dblp_api
 import bibtex_dblp.database
-import arxiv
 import requests
 from sickle import Sickle
 import hashlib
@@ -26,6 +25,7 @@ class LookupConfig:
         self.delay_arxiv = 0
         self.delay_eprint = 0
         self.delay_doi = 0
+        self.user_agent_arxiv = None
         self.user_agent_eprint = None
         self.user_agent_doi = None
 
@@ -47,7 +47,16 @@ def _lookup_dblp_by_dblpid(dblpid):
 @disk_cache.memoize(expire=60*60*24, tag='arxiv')
 def _lookup_arxiv_by_arxivid(arxivid):
     time.sleep(_lookup_config.delay_arxiv)
-    return arxiv.Search(id_list=[arxivid])
+    url = f"https://arxiv.org/bibtex/{arxivid}"
+    headers = {}
+    if _lookup_config.user_agent_arxiv:
+        headers['User-Agent'] = _lookup_config.user_agent_arxiv
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.text
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Failed to fetch BibTeX for arXiv ID {arxivid} from {url}: {e}") from e
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_eprintid(eprintid):
@@ -178,38 +187,25 @@ class ArxivEntry:
 
     def render_pybtex_entry(self):
         qid = self.arxivid + (('v' + self.version) if self.version else '')
-        search = _lookup_arxiv_by_arxivid(qid)
-        res = list(search.results())
-        assert len(res) == 1
-        entry = res[0]
-
-        bibtex_string = """
-            @misc{%s,
-                author        = {%s},
-                title         = {%s},
-                _howpublished  = {arXiv:%s [%s]},
-                _url           = {%s},
-                year          = {%d},
-                archivePrefix = {arXiv},
-                eprint        = {%s},
-                primaryClass  = {%s},
-            }
-        """ % (
-            self.bibtexid,
-            ' and '.join([a.name for a in entry.authors]),
-            entry.title,
-            entry.get_short_id(),
-            entry.primary_category,
-            entry.entry_id,
-            entry.published.year,
-            entry.get_short_id(),
-            entry.primary_category,
-        )
-
+        bibtex_string = _lookup_arxiv_by_arxivid(qid)
+        
+        # Parse the BibTeX returned from arXiv
         data = bibtex_dblp.database.parse_bibtex(bibtex_string)
-        assert len(data.entries) == 1
+        assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from arXiv {qid}, got {len(data.entries)}'
         key = list(data.entries.keys())[0]
-        return data.entries[key]
+        entry = data.entries[key]
+        
+        # Update the entry key to match our bibtexid
+        entry.key = self.bibtexid
+        
+        # Add _howpublished and _url fields to match original behavior
+        # These fields are not in arXiv's BibTeX but were in the original implementation
+        eprint = entry.fields.get('eprint', qid)
+        primary_class = entry.fields.get('primaryclass', entry.fields.get('primaryClass', ''))
+        entry.fields['_howpublished'] = f"arXiv:{eprint}" + (f" [{primary_class}]" if primary_class else "")
+        entry.fields['_url'] = f"https://arxiv.org/abs/{qid}"
+        
+        return entry
 
     @property
     def sortkey_source(self):

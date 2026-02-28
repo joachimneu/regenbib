@@ -92,6 +92,8 @@ def run():
                         default=0, help='Delay in seconds before ePrint lookups (default: 0)')
     parser.add_argument('--delay-doi', metavar='SECONDS', type=float,
                         default=0, help='Delay in seconds before DOI lookups (default: 0)')
+    parser.add_argument('--user-agent-arxiv', metavar='USER_AGENT', type=str,
+                        default=None, help='User agent string for arXiv lookups (default: requests library default)')
     parser.add_argument('--user-agent-eprint', metavar='USER_AGENT', type=str,
                         default=None, help='User agent string for ePrint lookups (default: requests library default)')
     parser.add_argument('--user-agent-doi', metavar='USER_AGENT', type=str,
@@ -112,6 +114,7 @@ def run():
         config.delay_arxiv = args.delay_arxiv
         config.delay_eprint = args.delay_eprint
         config.delay_doi = args.delay_doi
+        config.user_agent_arxiv = args.user_agent_arxiv
         config.user_agent_eprint = args.user_agent_eprint
         config.user_agent_doi = args.user_agent_doi
         set_lookup_config(config)
