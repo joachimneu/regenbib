@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 import argparse
-from .store import Store, disk_cache, get_arxiv_current_version, ArxivEntry
+from .store import Store, disk_cache, _lookup_arxiv_version_by_arxivid, ArxivEntry
 
 
 def run():
@@ -65,7 +65,7 @@ def run():
                     continue
                 
                 print(f"Freezing {entry.bibtexid} (arXiv:{entry.arxivid})...", end=" ")
-                current_version = get_arxiv_current_version(entry.arxivid)
+                current_version = _lookup_arxiv_version_by_arxivid(entry.arxivid)
                 entry.version = current_version
                 modified = True
                 print(f"set to v{current_version}")

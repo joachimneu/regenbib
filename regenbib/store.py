@@ -14,6 +14,7 @@ import importlib.metadata
 import hashlib
 import time
 import re
+import xml.etree.ElementTree as ET
 
 
 REGENBIB_VERSION = importlib.metadata.version('regenbib')
@@ -123,16 +124,16 @@ def _lookup_arxiv_version_by_arxivid(arxivid):
         response.raise_for_status()
         xml_content = response.text
         
-        match = re.search(r'<id>http://arxiv\.org/abs/[^<]+v(\d+)</id>', xml_content)
-        if match:
-            return match.group(1)
-        else:
-            raise RuntimeError(f"Could not extract version from arXiv API response for {arxivid}")
+        root = ET.fromstring(xml_content)
+        namespaces = {'atom': 'http://www.w3.org/2005/Atom'}
+        entry = root.find('atom:entry/atom:id', namespaces)
+        assert entry is not None and entry.text, f"Could not extract version from arXiv API response for {arxivid}"
+        
+        match = re.search(r'v(\d+)$', entry.text)
+        assert match, f"Could not extract version from arXiv API response for {arxivid}"
+        return match.group(1)
     except requests.exceptions.RequestException as e:
         raise RuntimeError(f"Failed to fetch arXiv metadata for {arxivid} from {url}: {e}") from e
-
-def get_arxiv_current_version(arxivid):
-    return _lookup_arxiv_version_by_arxivid(arxivid)
 
 
 @dataclass
