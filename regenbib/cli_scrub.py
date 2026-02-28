@@ -45,6 +45,7 @@ def run():
         
         elif args.command == 'freeze-arxiv':
             entry_ids = set(args.entry_ids) if args.entry_ids else None
+            modified = False
             
             for entry in store.entries:
                 if entry_ids is not None and entry.bibtexid not in entry_ids:
@@ -60,13 +61,13 @@ def run():
                     continue
                 
                 print(f"Freezing {entry.bibtexid} (arXiv:{entry.arxivid})...", end=" ")
-                try:
-                    current_version = get_arxiv_current_version(entry.arxivid)
-                    entry.version = current_version
-                    print(f"set to v{current_version}")
-                except Exception as e:
-                    print(f"FAILED: {e}")
-                    raise
+                current_version = get_arxiv_current_version(entry.arxivid)
+                entry.version = current_version
+                modified = True
+                print(f"set to v{current_version}")
+            
+            if not modified:
+                return
 
         store.dump(args.yaml)
     except Exception:

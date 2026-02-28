@@ -118,7 +118,7 @@ def get_arxiv_current_version(arxivid):
     
     eprint = entry.fields.get('eprint', '')
     if not eprint:
-        raise RuntimeError(f"No eprint field found in BibTeX for arXiv ID {arxivid}")
+        raise RuntimeError(f"Missing or empty eprint field in BibTeX for arXiv ID {arxivid}")
     
     if 'v' in eprint:
         _, version = eprint.rsplit('v', 1)
