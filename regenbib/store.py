@@ -5,7 +5,7 @@ import pybtex.database
 import bibtex_dblp.dblp_api
 import bibtex_dblp.database
 import requests
-from bs4 import BeautifulSoup
+from sickle import Sickle
 import hashlib
 from diskcache import Cache
 from pathlib import Path
@@ -59,10 +59,44 @@ def _lookup_arxiv_by_arxivid(arxivid):
         raise RuntimeError(f"Failed to fetch BibTeX for arXiv ID {arxivid} from {url}: {e}") from e
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
-def _lookup_eprint_by_url(url):
+def _lookup_eprint_by_eprintid(eprintid):
     time.sleep(_lookup_config.delay_eprint)
-    headers = {'User-Agent': _lookup_config.user_agent_eprint} if _lookup_config.user_agent_eprint else None
-    return requests.get(url, headers=headers).text
+    
+    oai_endpoint = 'https://eprint.iacr.org/oai'
+    oai_identifier = f'oai:eprint.iacr.org:{eprintid}'
+    
+    sickle_kwargs = {}
+    if _lookup_config.user_agent_eprint:
+        sickle_kwargs['headers'] = {'User-Agent': _lookup_config.user_agent_eprint}
+    
+    sickle = Sickle(oai_endpoint, **sickle_kwargs)
+    
+    record = sickle.GetRecord(identifier=oai_identifier, metadataPrefix='oai_dc')
+    
+    metadata = record.metadata
+    
+    creators = metadata.get('creator', [])
+    assert creators, f"No authors found in OAI record for {eprintid}"
+    authors = ' and '.join(creators)
+    
+    titles = metadata.get('title', [])
+    assert titles and titles[0], f"No title found in OAI record for {eprintid}"
+    title = titles[0]
+    
+    assert '/' in eprintid, f"Invalid ePrint ID format: {eprintid} (expected YEAR/NUMBER)"
+    year = eprintid.split('/')[0]
+    assert year.isdigit() and len(year) == 4, f"Invalid year in ePrint ID: {eprintid} (expected 4-digit year)"
+    bibtex_key = f'cryptoeprint:{eprintid}'
+    
+    bibtex = f"""@misc{{{bibtex_key},
+      author = {{{authors}}},
+      title = {{{title}}},
+      howpublished = {{Cryptology {{ePrint}} Archive, Paper {eprintid}}},
+      year = {{{year}}},
+      url = {{https://eprint.iacr.org/{eprintid}}}
+}}"""
+    
+    return bibtex
 
 @disk_cache.memoize(expire=60*60*24, tag='doi')
 def _lookup_doi_by_doi(doi):
@@ -204,11 +238,8 @@ class EprintEntry:
         return slf
 
     def render_pybtex_entry(self):
-        url = "https://eprint.iacr.org/" + self.eprintid
-        soup = BeautifulSoup(_lookup_eprint_by_url(url), features="html.parser")
-
-        data = bibtex_dblp.database.parse_bibtex(
-            soup.select("#bibtex")[0].text)
+        bibtex_text = _lookup_eprint_by_eprintid(self.eprintid)
+        data = bibtex_dblp.database.parse_bibtex(bibtex_text)
         assert len(data.entries) == 1
         key = list(data.entries.keys())[0]
         return data.entries[key]
