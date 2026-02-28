@@ -44,17 +44,21 @@ def run():
             print("Post-clear", "check (warnings):", disk_cache.check())
         
         elif args.command == 'freeze-arxiv':
-            entry_ids = set(args.entry_ids) if args.entry_ids else None
-            modified = False
+            entries_by_bibtexid = {entry.bibtexid: entry for entry in store.entries}
             
-            for entry in store.entries:
-                if entry_ids is not None and entry.bibtexid not in entry_ids:
-                    continue
-                
-                if not isinstance(entry, ArxivEntry):
-                    if entry_ids is not None and entry.bibtexid in entry_ids:
-                        assert False, f"Entry '{entry.bibtexid}' is not an arXiv entry"
-                    continue
+            if args.entry_ids:
+                entry_ids_to_freeze = args.entry_ids
+            else:
+                entry_ids_to_freeze = [entry.bibtexid for entry in store.entries if isinstance(entry, ArxivEntry)]
+            
+            for entry_id in entry_ids_to_freeze:
+                assert entry_id in entries_by_bibtexid, f"Entry '{entry_id}' not found in store"
+                entry = entries_by_bibtexid[entry_id]
+                assert isinstance(entry, ArxivEntry), f"Entry '{entry_id}' is not an arXiv entry"
+            
+            modified = False
+            for entry_id in entry_ids_to_freeze:
+                entry = entries_by_bibtexid[entry_id]
                 
                 if entry.version:
                     print(f"Skipping {entry.bibtexid}: version already set to v{entry.version}")
