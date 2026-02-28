@@ -175,7 +175,7 @@ def run():
                         default='references.yaml', help='File name of .yaml file')
     parser.add_argument('--laxpybteximport', action='store_true',
                         default=False, help='Disable strict mode of pybtex for .bib import')
-    parser.add_argument('--debug', action='store_true',
+    parser.add_argument('--fail-to-pdb', action='store_true',
                         default=False, help='Drop into pdb debugger on unexpected exceptions')
     args = parser.parse_args()
 
@@ -262,7 +262,7 @@ def run():
 
             store.dump(args.yaml)
     except Exception:
-        if args.debug:
+        if args.fail_to_pdb:
             import pdb
             import traceback
             traceback.print_exc()

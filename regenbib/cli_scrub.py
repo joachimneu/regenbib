@@ -7,7 +7,7 @@ from .store import Store, disk_cache
 def run():
     parser = argparse.ArgumentParser(description='Perform maintenance on references provided in .yaml file')
     parser.add_argument('--yaml', metavar='YAML_FILE', type=str, default='references.yaml', help='File name of .yaml file')
-    parser.add_argument('--debug', action='store_true',
+    parser.add_argument('--fail-to-pdb', action='store_true',
                         default=False, help='Drop into pdb debugger on unexpected exceptions')
     
     subparsers = parser.add_subparsers(dest='command', required=True)
@@ -41,7 +41,7 @@ def run():
 
         store.dump(args.yaml)
     except Exception:
-        if args.debug:
+        if args.fail_to_pdb:
             import pdb
             import traceback
             traceback.print_exc()

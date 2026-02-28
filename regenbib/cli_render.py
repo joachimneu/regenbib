@@ -96,7 +96,7 @@ def run():
                         default=None, help='User agent string for ePrint lookups (default: requests library default)')
     parser.add_argument('--user-agent-doi', metavar='USER_AGENT', type=str,
                         default=None, help='User agent string for DOI lookups (default: requests library default)')
-    parser.add_argument('--debug', action='store_true',
+    parser.add_argument('--fail-to-pdb', action='store_true',
                         default=False, help='Drop into pdb debugger on unexpected exceptions')
     args = parser.parse_args()
 
@@ -167,7 +167,7 @@ def run():
                 bib.entries[entry.bibtexid] = entry_pybtex
             bibtex_dblp.database.write_to_file(bib, args.bib)
     except Exception:
-        if args.debug:
+        if args.fail_to_pdb:
             import pdb
             import traceback
             traceback.print_exc()
