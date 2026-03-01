@@ -44,21 +44,51 @@ disk_cache = Cache(directory=disk_cache_dir)
 @disk_cache.memoize(expire=60*60*24, tag='dblp')
 def _lookup_dblp_by_dblpid(dblpid):
     time.sleep(_lookup_config.delay_dblp)
+
     return bibtex_dblp.dblp_api.get_bibtex(dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed)
 
 @disk_cache.memoize(expire=60*60*24, tag='arxiv')
 def _lookup_arxiv_by_arxivid(arxivid):
     time.sleep(_lookup_config.delay_arxiv)
+
     url = f"https://arxiv.org/bibtex/{arxivid}"
     headers = {}
     if _lookup_config.user_agent_arxiv:
         headers['User-Agent'] = _lookup_config.user_agent_arxiv
+
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         return response.text
+
     except requests.exceptions.RequestException as e:
         raise RuntimeError(f"Failed to fetch BibTeX for arXiv ID {arxivid} from {url}: {e}") from e
+
+@disk_cache.memoize(expire=60*60*24, tag='arxiv-version')
+def _lookup_arxiv_version_by_arxivid(arxivid):
+    time.sleep(_lookup_config.delay_arxiv)
+
+    url = f"https://export.arxiv.org/api/query?id_list={arxivid}"
+    headers = {}
+    if _lookup_config.user_agent_arxiv:
+        headers['User-Agent'] = _lookup_config.user_agent_arxiv
+    
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        xml_content = response.text
+        
+        root = ET.fromstring(xml_content)
+        namespaces = {'atom': 'http://www.w3.org/2005/Atom'}
+        entry = root.find('atom:entry/atom:id', namespaces)
+        assert entry is not None and entry.text, f"Could not extract version from arXiv API response for {arxivid}"
+        
+        match = re.search(r'v(\d+)$', entry.text).group(1)
+        assert match, f"Could not extract version from arXiv API response for {arxivid}"
+        return match
+        
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Failed to fetch arXiv metadata for {arxivid} from {url}: {e}") from e
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_eprintid(eprintid):
@@ -105,37 +135,15 @@ def _lookup_eprint_by_eprintid(eprintid):
 @disk_cache.memoize(expire=60*60*24, tag='doi')
 def _lookup_doi_by_doi(doi):
     time.sleep(_lookup_config.delay_doi)
+
     url = f"https://doi.org/{doi}"
     headers = {'Accept': 'application/x-bibtex'}
     if _lookup_config.user_agent_doi:
         headers['User-Agent'] = _lookup_config.user_agent_doi
+
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.text
-
-@disk_cache.memoize(expire=60*60*24, tag='arxiv_version')
-def _lookup_arxiv_version_by_arxivid(arxivid):
-    time.sleep(_lookup_config.delay_arxiv)
-    url = f"https://export.arxiv.org/api/query?id_list={arxivid}"
-    headers = {}
-    if _lookup_config.user_agent_arxiv:
-        headers['User-Agent'] = _lookup_config.user_agent_arxiv
-    
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        xml_content = response.text
-        
-        root = ET.fromstring(xml_content)
-        namespaces = {'atom': 'http://www.w3.org/2005/Atom'}
-        entry = root.find('atom:entry/atom:id', namespaces)
-        assert entry is not None and entry.text, f"Could not extract version from arXiv API response for {arxivid}"
-        
-        match = re.search(r'v(\d+)$', entry.text)
-        assert match, f"Could not extract version from arXiv API response for {arxivid}"
-        return match.group(1)
-    except requests.exceptions.RequestException as e:
-        raise RuntimeError(f"Failed to fetch arXiv metadata for {arxivid} from {url}: {e}") from e
 
 
 @dataclass
@@ -225,17 +233,20 @@ class ArxivEntry:
         
         entry.key = self.bibtexid
         
-        eprint = entry.fields.get('eprint', self.arxivid)
+        eprint = entry.fields.get('eprint', '')
+        assert eprint, f"arXiv backend returned empty eprint field for {qid}"
         assert not re.search(r'\.\d+v\d+$', eprint), f"arXiv backend returned version in eprint field: {eprint}"
-        if self.version:
-            eprint = f"{eprint}v{self.version}"
+        assert eprint == self.arxivid, f"arXiv backend returned eprint field {eprint} for {qid} but expected {self.arxivid}"
         
-        entry.fields['eprint'] = eprint
+        entry.fields['eprint'] = qid
         
         primary_class = entry.fields.get('primaryclass', entry.fields.get('primaryClass', ''))
-        entry.fields['_howpublished'] = f"arXiv:{eprint}" + (f" [{primary_class}]" if primary_class else "")
+        entry.fields['_howpublished'] = f"arXiv:{qid}" + (f" [{primary_class}]" if primary_class else "")
         
         entry.fields['_url'] = f"https://arxiv.org/abs/{qid}"
+
+        assert entry.fields['url'] == f"https://arxiv.org/abs/{self.arxivid}"
+        del entry.fields['url']
         
         return entry
 

@@ -19,9 +19,11 @@ def run():
 
     subparser_rmcache = subparsers.add_parser('rmcache', help='Clear cached metadata')
     
-    subparser_freeze_arxiv = subparsers.add_parser('freeze-arxiv', help='Set explicit versions for arXiv entries')
-    subparser_freeze_arxiv.add_argument('entry_ids', metavar='ENTRY_ID', nargs='*', 
-                                        help='BibTeX IDs of entries to freeze (if not provided, all arXiv entries are frozen)')
+    subparser_freeze_arxiv = subparsers.add_parser('freeze-arxiv', help='Set explicit versions for arXiv entries (the latest version available online)')
+    subparser_freeze_arxiv.add_argument('entries_bibtexids', metavar='ENTRIES_BIBTEXIDS', nargs='*', help='BibTeX IDs of entries to freeze (if not provided, all arXiv entries are frozen)')
+
+    subparser_unfreeze_arxiv = subparsers.add_parser('unfreeze-arxiv', help='Remove explicit versions for arXiv entries')
+    subparser_unfreeze_arxiv.add_argument('entries_bibtexids', metavar='ENTRIES_BIBTEXIDS', nargs='*', help='BibTeX IDs of entries to unfreeze (if not provided, all arXiv entries are unfrozen)')
 
     args = parser.parse_args()
 
@@ -44,12 +46,12 @@ def run():
             print("Post-clear", "check (warnings):", disk_cache.check())
         
         elif args.command == 'freeze-arxiv':
-            entries_by_bibtexid = {entry.bibtexid: entry for entry in store.entries}
+            entries_by_bibtexid = { entry.bibtexid: entry for entry in store.entries }
             
-            if args.entry_ids:
-                entry_ids_to_freeze = args.entry_ids
+            if args.entries_bibtexids:
+                entry_ids_to_freeze = args.entries_bibtexids
             else:
-                entry_ids_to_freeze = [entry.bibtexid for entry in store.entries if isinstance(entry, ArxivEntry)]
+                entry_ids_to_freeze = [ entry.bibtexid for entry in store.entries if isinstance(entry, ArxivEntry) ]
             
             for entry_id in entry_ids_to_freeze:
                 assert entry_id in entries_by_bibtexid, f"Entry '{entry_id}' not found in store"
@@ -57,6 +59,7 @@ def run():
                 assert isinstance(entry, ArxivEntry), f"Entry '{entry_id}' is not an arXiv entry"
             
             modified = False
+
             for entry_id in entry_ids_to_freeze:
                 entry = entries_by_bibtexid[entry_id]
                 
@@ -64,11 +67,42 @@ def run():
                     print(f"Skipping {entry.bibtexid}: version already set to v{entry.version}")
                     continue
                 
-                print(f"Freezing {entry.bibtexid} (arXiv:{entry.arxivid})...", end=" ")
+                assert not entry.version
+                print(f"Freezing {entry.bibtexid} (arXiv:{entry.arxivid}) ...")
                 current_version = _lookup_arxiv_version_by_arxivid(entry.arxivid)
                 entry.version = current_version
                 modified = True
-                print(f"set to v{current_version}")
+                print(f"Set to: v{current_version}")
+            
+            if not modified:
+                return
+        
+        elif args.command == 'unfreeze-arxiv':
+            entries_by_bibtexid = { entry.bibtexid: entry for entry in store.entries }
+            
+            if args.entries_bibtexids:
+                entry_ids_to_freeze = args.entries_bibtexids
+            else:
+                entry_ids_to_freeze = [ entry.bibtexid for entry in store.entries if isinstance(entry, ArxivEntry) ]
+            
+            for entry_id in entry_ids_to_freeze:
+                assert entry_id in entries_by_bibtexid, f"Entry '{entry_id}' not found in store"
+                entry = entries_by_bibtexid[entry_id]
+                assert isinstance(entry, ArxivEntry), f"Entry '{entry_id}' is not an arXiv entry"
+            
+            modified = False
+
+            for entry_id in entry_ids_to_freeze:
+                entry = entries_by_bibtexid[entry_id]
+                
+                if not entry.version:
+                    print(f"Skipping {entry.bibtexid}: version already empty")
+                    continue
+                
+                assert entry.version
+                print(f"Unfreezing {entry.bibtexid} (arXiv:{entry.arxivid}) ...")
+                entry.version = ''
+                modified = True
             
             if not modified:
                 return
