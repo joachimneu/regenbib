@@ -132,6 +132,21 @@ def import_eprint_manualid(bibtexid):
             print("---> Assertion on parsing manual input, retry!")
 
 
+def import_doi_manualid(bibtexid):
+    from .store import DoiEntry
+
+    while True:
+        manual = bibtex_dblp.io.get_user_input(
+            "---> DOI [<empty>=abort]: ")
+        if manual == "":
+            return None
+
+        try:
+            return DoiEntry.from_manual(bibtexid, manual)
+        except AssertionError:
+            print("---> Assertion on parsing manual input, retry!")
+
+
 def attempt_import(methods):
     while True:
         methods_str = ", ".join(
@@ -158,90 +173,104 @@ def run():
                         default='_build/main.aux', help='File name of .aux file')
     parser.add_argument('--yaml', metavar='YAML_FILE', type=str,
                         default='references.yaml', help='File name of .yaml file')
-    parser.add_argument('--laxpybteximport', action='store_true',
+    parser.add_argument('--lax-pybtex-import', action='store_true',
                         default=False, help='Disable strict mode of pybtex for .bib import')
+    parser.add_argument('--fail-to-pdb', action='store_true',
+                        default=False, help='Drop into pdb debugger on unexpected exceptions')
     args = parser.parse_args()
 
-    METHODS_WITHOUT_OLDENTRY = [
-        ('dblp-free-search', import_dblp_free_search),
-        ('arxiv-manual-id', import_arxiv_manualid),
-        ('eprint-manual-id', import_eprint_manualid),
-    ]
+    try:
+        METHODS_WITHOUT_OLDENTRY = [
+            ('dblp-free-search', import_dblp_free_search),
+            ('arxiv-manual-id', import_arxiv_manualid),
+            ('eprint-manual-id', import_eprint_manualid),
+            ('doi-manual-id', import_doi_manualid),
+        ]
 
-    METHODS_WITH_OLDENTRY = [
-        ('current-entry', import_current_raw_entry),
-        ('dblp-search-title', import_dblp_search_title),
-        ('dblp-search-authorstitle', import_dblp_search_authortitle),
-    ]
+        METHODS_WITH_OLDENTRY = [
+            ('current-entry', import_current_raw_entry),
+            ('dblp-search-title', import_dblp_search_title),
+            ('dblp-search-authorstitle', import_dblp_search_authortitle),
+        ]
 
-    bibtexids_included = []
-    with open(args.aux, 'r') as infile:
-        for l in infile.readlines():
-            l = l.strip()
+        bibtexids_included = []
+        with open(args.aux, 'r') as infile:
+            for l in infile.readlines():
+                l = l.strip()
 
-            # BibLaTeX
-            matches = re.findall(r"\\abx@aux@cite\{0\}\{(.*?)\}", l)
-            assert len(matches) <= 1
-            if matches:
-                m = matches[0]
-                if not m in bibtexids_included:
-                    bibtexids_included.append(m)
-
-            # BibTeX
-            matches = re.findall(r"\\citation\{(.*?)\}", l)
-            assert len(matches) <= 1
-            if matches:
-                for m in matches[0].split(','):
-                    m = m.strip()
+                # BibLaTeX
+                matches = re.findall(r"\\abx@aux@cite\{0\}\{(.*?)\}", l)
+                assert len(matches) <= 1
+                if matches:
+                    m = matches[0]
                     if not m in bibtexids_included:
                         bibtexids_included.append(m)
 
-    store = Store.load_or_empty(args.yaml)
+                # BibTeX
+                matches = re.findall(r"\\citation\{(.*?)\}", l)
+                assert len(matches) <= 1
+                if matches:
+                    for m in matches[0].split(','):
+                        m = m.strip()
+                        if not m in bibtexids_included:
+                            bibtexids_included.append(m)
 
-    if args.laxpybteximport:
-        set_strict_mode(False)
-    bibtex_entries = bibtex_dblp.database.load_from_file(args.bib)
-    set_strict_mode()
+        store = Store.load_or_empty(args.yaml)
 
-    for bibtexid in bibtexids_included:
-        if bibtexid in store.bibtexids:
-            continue
+        if args.lax_pybtex_import:
+            set_strict_mode(False)
+        bibtex_entries = bibtex_dblp.database.load_from_file(args.bib)
+        set_strict_mode()
 
-        print("Importing entry:", bibtexid)
+        for bibtexid in bibtexids_included:
+            if bibtexid in store.bibtexids:
+                continue
 
-        entry_old = None
-        if bibtexid in bibtex_entries.entries.keys():
-            entry_old = bibtex_entries.entries[bibtexid]
-        else:
-            for (tmp_entry_key, tmp_entry) in bibtex_entries.entries.items():
-                tmp_ids = tmp_entry.fields.get('ids', '')
-                if not tmp_ids:
-                    tmp_ids = []
-                else:
-                    tmp_ids = [ tmp_id.strip() for tmp_id in tmp_ids.split(',') ]
-                if bibtexid in tmp_ids:
-                    entry_old = copy.deepcopy(tmp_entry)
-                    entry_old.key = bibtexid
-                    del entry_old.fields['ids']
-                    break
+            print("Importing entry:", bibtexid)
 
-        if entry_old is None:
-            print("-> Not found in .bib file!")
-            entry = attempt_import([(lambda name, fun: (name, lambda: fun(bibtexid)))(name, fun)
-                                    for (name, fun) in METHODS_WITHOUT_OLDENTRY])
+            entry_old = None
+            if bibtexid in bibtex_entries.entries.keys():
+                entry_old = bibtex_entries.entries[bibtexid]
+            else:
+                for (tmp_entry_key, tmp_entry) in bibtex_entries.entries.items():
+                    tmp_ids = tmp_entry.fields.get('ids', '')
+                    if not tmp_ids:
+                        tmp_ids = []
+                    else:
+                        tmp_ids = [ tmp_id.strip() for tmp_id in tmp_ids.split(',') ]
+                    if bibtexid in tmp_ids:
+                        entry_old = copy.deepcopy(tmp_entry)
+                        entry_old.key = bibtexid
+                        del entry_old.fields['ids']
+                        break
 
-        else:
-            print("-> Current entry:", entry_old)
-            entry = attempt_import([(lambda name, fun: (name, lambda: fun(bibtexid)))(name, fun)
-                                    for (name, fun) in METHODS_WITHOUT_OLDENTRY]
-                                   + [(lambda name, fun: (name, lambda: fun(bibtexid, entry_old)))(name, fun)
-                                      for (name, fun) in METHODS_WITH_OLDENTRY])
+            if entry_old is None:
+                print("-> Not found in .bib file!")
+                entry = attempt_import([(lambda name, fun: (name, lambda: fun(bibtexid)))(name, fun)
+                                        for (name, fun) in METHODS_WITHOUT_OLDENTRY])
 
-        if entry != None:
-            store.entries.append(entry)
+            else:
+                print("-> Current entry:", entry_old)
+                entry = attempt_import([(lambda name, fun: (name, lambda: fun(bibtexid)))(name, fun)
+                                        for (name, fun) in METHODS_WITHOUT_OLDENTRY]
+                                       + [(lambda name, fun: (name, lambda: fun(bibtexid, entry_old)))(name, fun)
+                                          for (name, fun) in METHODS_WITH_OLDENTRY])
+
+            if entry != None:
+                store.entries.append(entry)
+                store.dump(args.yaml)
+
             store.dump(args.yaml)
 
-        store.dump(args.yaml)
+            
+    except Exception:
+        if args.fail_to_pdb:
+            import pdb
+            import traceback
+            traceback.print_exc()
+            pdb.post_mortem()
+        else:
+            raise
 
 
 if __name__ == '__main__':

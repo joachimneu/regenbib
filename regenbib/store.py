@@ -4,29 +4,146 @@ from marshmallow_dataclass import dataclass
 import pybtex.database
 import bibtex_dblp.dblp_api
 import bibtex_dblp.database
-import arxiv
 import requests
-from bs4 import BeautifulSoup
+from sickle import Sickle
 import hashlib
 from diskcache import Cache
 from pathlib import Path
 import os
+import importlib.metadata
+import hashlib
+import time
+import re
+import xml.etree.ElementTree as ET
 
 
-disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib')
+REGENBIB_VERSION = importlib.metadata.version('regenbib')
+REGENBIB_VERSION_ID = hashlib.sha256(''.join(str(f.hash) for f in sorted(importlib.metadata.files("regenbib"))).encode('utf-8')).hexdigest()
+
+
+class LookupConfig:
+    def __init__(self):
+        self.delay_dblp = 0
+        self.delay_arxiv = 0
+        self.delay_eprint = 0
+        self.delay_doi = 0
+        self.user_agent_arxiv = None
+        self.user_agent_eprint = None
+        self.user_agent_doi = None
+
+_lookup_config = LookupConfig()
+
+def set_lookup_config(config):
+    global _lookup_config
+    _lookup_config = config
+
+
+disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib', REGENBIB_VERSION_ID)
 disk_cache = Cache(directory=disk_cache_dir)
-
+  
 @disk_cache.memoize(expire=60*60*24, tag='dblp')
 def _lookup_dblp_by_dblpid(dblpid):
+    time.sleep(_lookup_config.delay_dblp)
+
     return bibtex_dblp.dblp_api.get_bibtex(dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed)
 
 @disk_cache.memoize(expire=60*60*24, tag='arxiv')
 def _lookup_arxiv_by_arxivid(arxivid):
-    return arxiv.Search(id_list=[arxivid])
+    time.sleep(_lookup_config.delay_arxiv)
+
+    url = f"https://arxiv.org/bibtex/{arxivid}"
+    headers = {}
+    if _lookup_config.user_agent_arxiv:
+        headers['User-Agent'] = _lookup_config.user_agent_arxiv
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.text
+
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Failed to fetch BibTeX for arXiv ID {arxivid} from {url}: {e}") from e
+
+@disk_cache.memoize(expire=60*60*24, tag='arxiv-version')
+def _lookup_arxiv_version_by_arxivid(arxivid):
+    time.sleep(_lookup_config.delay_arxiv)
+
+    url = f"https://export.arxiv.org/api/query?id_list={arxivid}"
+    headers = {}
+    if _lookup_config.user_agent_arxiv:
+        headers['User-Agent'] = _lookup_config.user_agent_arxiv
+    
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        xml_content = response.text
+        
+        root = ET.fromstring(xml_content)
+        namespaces = {'atom': 'http://www.w3.org/2005/Atom'}
+        entry = root.find('atom:entry/atom:id', namespaces)
+        assert entry is not None and entry.text, f"Could not extract version from arXiv API response for {arxivid}"
+        
+        match = re.search(r'v(\d+)$', entry.text).group(1)
+        assert match, f"Could not extract version from arXiv API response for {arxivid}"
+        return match
+        
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Failed to fetch arXiv metadata for {arxivid} from {url}: {e}") from e
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
-def _lookup_eprint_by_url(url):
-    return requests.get(url).text
+def _lookup_eprint_by_eprintid(eprintid):
+    time.sleep(_lookup_config.delay_eprint)
+    
+    oai_endpoint = 'https://eprint.iacr.org/oai'
+    oai_identifier = f'oai:eprint.iacr.org:{eprintid}'
+    
+    sickle_kwargs = {}
+    if _lookup_config.user_agent_eprint:
+        sickle_kwargs['headers'] = {'User-Agent': _lookup_config.user_agent_eprint}
+    
+    sickle = Sickle(oai_endpoint, **sickle_kwargs)
+    
+    record = sickle.GetRecord(identifier=oai_identifier, metadataPrefix='oai_dc')
+    
+    metadata = record.metadata
+    
+    creators = metadata.get('creator', [])
+    assert creators, f"No authors found in OAI record for {eprintid}"
+    authors = ' and '.join(creators)
+    
+    titles = metadata.get('title', [])
+    assert titles and titles[0], f"No title found in OAI record for {eprintid}"
+    title = titles[0]
+    
+    assert '/' in eprintid, f"Invalid ePrint ID format: {eprintid} (expected YEAR/NUMBER)"
+    year = eprintid.split('/')[0]
+    assert year.isdigit() and len(year) == 4, f"Invalid year in ePrint ID: {eprintid} (expected 4-digit year)"
+    bibtex_key = f'cryptoeprint:{eprintid}'
+    
+    bibtex = f"""
+        @misc{{{bibtex_key},
+            author = {{{authors}}},
+            title = {{{title}}},
+            howpublished = {{Cryptology {{ePrint}} Archive, Paper {eprintid}}},
+            year = {{{year}}},
+            url = {{https://eprint.iacr.org/{eprintid}}}
+        }}
+    """
+    
+    return bibtex
+
+@disk_cache.memoize(expire=60*60*24, tag='doi')
+def _lookup_doi_by_doi(doi):
+    time.sleep(_lookup_config.delay_doi)
+
+    url = f"https://doi.org/{doi}"
+    headers = {'Accept': 'application/x-bibtex'}
+    if _lookup_config.user_agent_doi:
+        headers['User-Agent'] = _lookup_config.user_agent_doi
+
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.text
 
 
 @dataclass
@@ -105,39 +222,33 @@ class ArxivEntry:
         return slf
 
     def render_pybtex_entry(self):
-        qid = self.arxivid + (('v' + self.version) if self.version else '')
-        search = _lookup_arxiv_by_arxivid(qid)
-        res = list(search.results())
-        assert len(res) == 1
-        entry = res[0]
-
-        bibtex_string = """
-            @misc{%s,
-                author        = {%s},
-                title         = {%s},
-                _howpublished  = {arXiv:%s [%s]},
-                _url           = {%s},
-                year          = {%d},
-                archivePrefix = {arXiv},
-                eprint        = {%s},
-                primaryClass  = {%s},
-            }
-        """ % (
-            self.bibtexid,
-            ' and '.join([a.name for a in entry.authors]),
-            entry.title,
-            entry.get_short_id(),
-            entry.primary_category,
-            entry.entry_id,
-            entry.published.year,
-            entry.get_short_id(),
-            entry.primary_category,
-        )
-
+        version = 'v' + self.version if self.version else ''
+        qid = self.arxivid + version
+        bibtex_string = _lookup_arxiv_by_arxivid(qid)
+        
         data = bibtex_dblp.database.parse_bibtex(bibtex_string)
-        assert len(data.entries) == 1
+        assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from arXiv {qid}, got {len(data.entries)}'
         key = list(data.entries.keys())[0]
-        return data.entries[key]
+        entry = data.entries[key]
+        
+        entry.key = self.bibtexid
+        
+        eprint = entry.fields.get('eprint', '')
+        assert eprint, f"arXiv backend returned empty eprint field for {qid}"
+        assert not re.search(r'\.\d+v\d+$', eprint), f"arXiv backend returned version in eprint field: {eprint}"
+        assert eprint == self.arxivid, f"arXiv backend returned eprint field {eprint} for {qid} but expected {self.arxivid}"
+        
+        entry.fields['eprint'] = qid
+        
+        primary_class = entry.fields.get('primaryclass', entry.fields.get('primaryClass', ''))
+        entry.fields['_howpublished'] = f"arXiv:{qid}" + (f" [{primary_class}]" if primary_class else "")
+        
+        entry.fields['_url'] = f"https://arxiv.org/abs/{qid}"
+
+        assert entry.fields['url'] == f"https://arxiv.org/abs/{self.arxivid}"
+        del entry.fields['url']
+        
+        return entry
 
     @property
     def sortkey_source(self):
@@ -170,11 +281,8 @@ class EprintEntry:
         return slf
 
     def render_pybtex_entry(self):
-        url = "https://eprint.iacr.org/" + self.eprintid
-        soup = BeautifulSoup(_lookup_eprint_by_url(url), features="html.parser")
-
-        data = bibtex_dblp.database.parse_bibtex(
-            soup.select("#bibtex")[0].text)
+        bibtex_text = _lookup_eprint_by_eprintid(self.eprintid)
+        data = bibtex_dblp.database.parse_bibtex(bibtex_text)
         assert len(data.entries) == 1
         key = list(data.entries.keys())[0]
         return data.entries[key]
@@ -193,12 +301,52 @@ class EprintEntry:
 
 
 @dataclass
+class DoiEntry:
+    bibtexid: str
+    doi: str
+
+    @classmethod
+    def from_manual(cls, bibtexid, manual: str):
+        slf = cls(bibtexid, "")
+        manual = manual.strip()
+        if manual.lower().startswith('doi:'):
+            manual = manual[4:].strip()
+        elif manual.lower().startswith('https://doi.org/'):
+            manual = manual[16:].strip()
+        elif manual.lower().startswith('http://doi.org/'):
+            manual = manual[15:].strip()
+        assert manual, 'DOI string is empty after stripping prefixes'
+        slf.doi = manual
+        return slf
+
+    def render_pybtex_entry(self):
+        bibtex_string = _lookup_doi_by_doi(self.doi)
+        data = bibtex_dblp.database.parse_bibtex(bibtex_string)
+        assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from DOI {self.doi}, got {len(data.entries)}'
+        key = list(data.entries.keys())[0]
+        return data.entries[key]
+
+    @property
+    def sortkey_source(self):
+        return self.__class__.__name__
+
+    @property
+    def sortkey_bibtexid(self):
+        return self.bibtexid
+
+    @property
+    def sortkey_contentid(self):
+        return (self.sortkey_source, self.doi)
+
+
+@dataclass
 class Store:
     entries: list[Union[
         RawBibtexEntry,
         DblpEntry,
         ArxivEntry,
         EprintEntry,
+        DoiEntry,
     ]]
 
     def dump(self, filename):
