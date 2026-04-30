@@ -2,6 +2,7 @@ import yaml
 from typing import Union
 from marshmallow_dataclass import dataclass
 import pybtex.database
+import pybtex.errors
 import bibtex_dblp.dblp_api
 import bibtex_dblp.database
 import requests
@@ -321,7 +322,11 @@ class DoiEntry:
 
     def render_pybtex_entry(self):
         bibtex_string = _lookup_doi_by_doi(self.doi)
-        data = bibtex_dblp.database.parse_bibtex(bibtex_string)
+        pybtex.errors.set_strict_mode(False)
+        try:
+            data = bibtex_dblp.database.parse_bibtex(bibtex_string)
+        finally:
+            pybtex.errors.set_strict_mode()
         assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from DOI {self.doi}, got {len(data.entries)}'
         key = list(data.entries.keys())[0]
         return data.entries[key]
