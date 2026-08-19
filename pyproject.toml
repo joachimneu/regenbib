@@ -1,33 +1,37 @@
-[tool.poetry]
+[project]
 name = "regenbib"
 version = "1.0.1"
 description = "(Re-)generate tidy .bib files from online sources"
-authors = ["Joachim Neu <jneu@stanford.edu>"]
+authors = [
+    { name = "Joachim Neu", email = "jneu@stanford.edu" },
+]
 license = "GPL-3.0-only"
 readme = "README.md"
+keywords = ["latex", "bibtex", "biblatex"]
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "bibtex-dblp (>=0.9,<0.10)",
+    "diskcache (>=5.6.3,<6.0.0)",
+    "marshmallow-dataclass (>=8.7.1,<9.0.0)",
+    "pybtex (>=0.24,<1.0)",
+    "PyYAML (>=6.0,<7.0)",
+    "requests (>=2.29.0,<3.0.0)",
+    "Sickle (>=0.7.0,<0.8.0)",
+]
+
+
+[project.urls]
 homepage = "https://github.com/joachimneu/regenbib"
 repository = "https://github.com/joachimneu/regenbib"
 documentation = "https://github.com/joachimneu/regenbib"
-keywords = ["latex", "bibtex", "biblatex"]
 
 
-[tool.poetry.scripts]
+[project.scripts]
 regenbib = 'regenbib.cli_render:run'
 regenbib-import = 'regenbib.cli_import:run'
 regenbib-scrub = 'regenbib.cli_scrub:run'
 
 
-[tool.poetry.dependencies]
-python = "^3.10"
-bibtex-dblp = "^0.9"
-marshmallow-dataclass = "^8.7.1"
-arxiv = "^2.2.0"
-requests = "^2.29.0"
-setuptools = "^75.0.0"
-diskcache = "^5.6.3"
-Sickle = "^0.7.0"
-
-
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0"]
 build-backend = "poetry.core.masonry.api"
