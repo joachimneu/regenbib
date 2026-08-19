@@ -137,7 +137,7 @@ def run():
             new_entries = {}
 
             for (entry_contentid, entry, entry_pybtex) in entries:
-                if not entry_contentid in new_entries.keys():
+                if entry_contentid not in new_entries.keys():
                     entry_pybtex.rawlists = getattr(entry_pybtex, 'rawlists', {})
                     entry_pybtex.rawlists['ids'] = entry_pybtex.rawlists.get('ids', [])
                     new_entries[entry_contentid] = (entry_contentid, entry, entry_pybtex)
@@ -159,7 +159,7 @@ def run():
                 while True:
                     cnt += 1
                     primary_bibtexid = 'reference_' + entry_contentid + '_' + str(cnt)
-                    if not primary_bibtexid in bib.entries.keys():
+                    if primary_bibtexid not in bib.entries.keys():
                         break
                 bib.entries[primary_bibtexid] = entry_pybtex
             MyBiblatexWriter().write_file(bib, args.bib)

@@ -15,9 +15,9 @@ def run():
     subparser_sort = subparsers.add_parser('sort', help='Sort .yaml file')
     subparser_sort.add_argument('--by', metavar='ORDER', required=True, type=str, help='Sort order (non-empty combination of: S = source, B = bibtex-id, C = content-id)')
     
-    subparser_dedup = subparsers.add_parser('dedup', help='Deduplicate .yaml file')
+    subparsers.add_parser('dedup', help='Deduplicate .yaml file')
 
-    subparser_rmcache = subparsers.add_parser('rmcache', help='Clear cached metadata')
+    subparsers.add_parser('rmcache', help='Clear cached metadata')
     
     subparser_freeze_arxiv = subparsers.add_parser('freeze-arxiv', help='Set explicit versions for arXiv entries (the latest version available online)')
     subparser_freeze_arxiv.add_argument('entries_bibtexids', metavar='ENTRIES_BIBTEXIDS', nargs='*', help='BibTeX IDs of entries to freeze (if not provided, all arXiv entries are frozen)')
@@ -32,7 +32,8 @@ def run():
 
         if args.command == 'sort':
             assert set(args.by) <= set("SBC")
-            keyfn = lambda e: [ e.sortkey_source if o == 'S' else e.sortkey_bibtexid if o == 'B' else e.sortkey_contentid if o == 'C' else '' for o in args.by ]
+            def keyfn(e):
+                return [ e.sortkey_source if o == 'S' else e.sortkey_bibtexid if o == 'B' else e.sortkey_contentid if o == 'C' else '' for o in args.by ]
             store.sort(keyfn)
             
         elif args.command == 'dedup':

@@ -158,7 +158,7 @@ def attempt_import(methods):
             return None
         else:
             ret = methods[method-1][1]()
-            if ret != None:
+            if ret is not None:
                 return ret
             else:
                 continue
@@ -195,24 +195,24 @@ def run():
 
         bibtexids_included = []
         with open(args.aux, 'r') as infile:
-            for l in infile.readlines():
-                l = l.strip()
+            for line in infile.readlines():
+                line = line.strip()
 
                 # BibLaTeX
-                matches = re.findall(r"\\abx@aux@cite\{0\}\{(.*?)\}", l)
+                matches = re.findall(r"\\abx@aux@cite\{0\}\{(.*?)\}", line)
                 assert len(matches) <= 1
                 if matches:
                     m = matches[0]
-                    if not m in bibtexids_included:
+                    if m not in bibtexids_included:
                         bibtexids_included.append(m)
 
                 # BibTeX
-                matches = re.findall(r"\\citation\{(.*?)\}", l)
+                matches = re.findall(r"\\citation\{(.*?)\}", line)
                 assert len(matches) <= 1
                 if matches:
                     for m in matches[0].split(','):
                         m = m.strip()
-                        if not m in bibtexids_included:
+                        if m not in bibtexids_included:
                             bibtexids_included.append(m)
 
         store = Store.load_or_empty(args.yaml)
@@ -256,7 +256,7 @@ def run():
                                        + [(lambda name, fun: (name, lambda: fun(bibtexid, entry_old)))(name, fun)
                                           for (name, fun) in METHODS_WITH_OLDENTRY])
 
-            if entry != None:
+            if entry is not None:
                 store.entries.append(entry)
                 store.dump(args.yaml)
 

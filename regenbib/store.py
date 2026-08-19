@@ -214,7 +214,7 @@ class ArxivEntry:
     def from_manual(cls, bibtexid, manual: str):
         slf = cls(bibtexid, "", "")
         manual = manual.strip().lower()
-        assert not 'arxiv' in manual
+        assert 'arxiv' not in manual
         (arxivid, version) = manual.split(
             'v', 1) if 'v' in manual else (manual, '')
         assert arxivid
@@ -273,8 +273,8 @@ class EprintEntry:
     def from_manual(cls, bibtexid, manual: str):
         slf = cls(bibtexid, "")
         manual = manual.strip().lower()
-        assert not 'eprint' in manual
-        assert not 'iacr' in manual
+        assert 'eprint' not in manual
+        assert 'iacr' not in manual
         eprintid = manual
         assert eprintid
         assert '/' in eprintid
@@ -385,7 +385,7 @@ class Store:
         entries_to_remove = []
 
         for (idx, entry) in enumerate(self.entries):
-            if not entry.bibtexid in entries.keys():
+            if entry.bibtexid not in entries.keys():
                 entries[entry.bibtexid] = []
             entries[entry.bibtexid].append(idx)
         
