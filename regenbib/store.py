@@ -12,7 +12,7 @@ from diskcache import Cache
 from pathlib import Path
 import os
 import importlib.metadata
-import hashlib
+import math
 import time
 import re
 import xml.etree.ElementTree as ET
@@ -357,7 +357,8 @@ class Store:
     def dump(self, filename):
         with open(filename, 'w') as outfile:
             yaml.dump(Store.Schema().dump(self),
-                      outfile, sort_keys=True, default_flow_style=False)
+                      outfile, sort_keys=True, default_flow_style=False,
+                      width=math.inf)
 
     @classmethod
     def load(cls, filename):
