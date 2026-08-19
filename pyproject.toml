@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "regenbib"
-version = "1.0.0"
+version = "1.0.1"
 description = "(Re-)generate tidy .bib files from online sources"
 authors = ["Joachim Neu <jneu@stanford.edu>"]
 license = "GPL-3.0-only"
@@ -20,7 +20,7 @@ regenbib-scrub = 'regenbib.cli_scrub:run'
 [tool.poetry.dependencies]
 python = "^3.10"
 bibtex-dblp = "^0.9"
-marshmallow-dataclass = { version = "8.5.14", extras = ["enum", "union"] }
+marshmallow-dataclass = "^8.7.1"
 arxiv = "^2.2.0"
 requests = "^2.29.0"
 setuptools = "^75.0.0"

@@ -43,7 +43,9 @@ All source code lives in `regenbib/` (4 files, ~800 lines total):
 
 ## Dependencies
 
-Requires Python `^3.10`. Key libraries: `bibtex-dblp` (DBLP API), `arxiv` (arXiv API), `Sickle` (OAI-PMH for ePrint), `requests` (HTTP/DOI), `marshmallow-dataclass` (pinned at `8.5.14` for YAML serialization), `diskcache` (persistent caching), `pybtex` (BibTeX processing).
+Requires Python `^3.10`. Key libraries: `bibtex-dblp` (DBLP API), `arxiv` (arXiv API), `Sickle` (OAI-PMH for ePrint), `requests` (HTTP/DOI), `marshmallow-dataclass` (`^8.7.1`, for YAML serialization), `diskcache` (persistent caching), `pybtex` (BibTeX processing).
+
+`marshmallow-dataclass` must stay at `>=8.7.0`. Earlier versions (including the `8.5.14` this project used to pin) declare `typeguard <4.0.0` under their `union` extra, and `typeguard` 3.x imports `ast.Str`, which was removed in Python 3.12 — so any older pin makes the tool unusable on Python 3.12+. The failure is easy to misdiagnose because it surfaces at *runtime*, not import time: `marshmallow_dataclass` imports `union_field` (the only `import typeguard` in its tree) lazily, so `regenbib --help` succeeds and the `ImportError` only fires when `Store.Schema()` is first built inside `Store.load()`. From `8.7.0` on, `typeguard >=4` is a core dependency and the `enum`/`union` extras no longer exist, so the extras must not be requested.
 
 ## Branch Workflow
 

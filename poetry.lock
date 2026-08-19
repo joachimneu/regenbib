@@ -378,32 +378,27 @@ tests = ["pytest", "simplejson"]
 
 [[package]]
 name = "marshmallow-dataclass"
-version = "8.5.14"
+version = "8.7.1"
 description = "Python library to convert dataclasses into marshmallow schemas."
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "marshmallow_dataclass-8.5.14-py3-none-any.whl", hash = "sha256:73859c8963774b5aad6b23ff3dd8456c8463e7c96bf5076051e1656fd4e101d0"},
-    {file = "marshmallow_dataclass-8.5.14.tar.gz", hash = "sha256:233c414dd24a6d512bcdb6fb840076bf7a29b7daaaea40634f155a5933377d2e"},
+    {file = "marshmallow_dataclass-8.7.1-py3-none-any.whl", hash = "sha256:405cbaaad9cea56b3de2f85eff32a9880e3bf849f652e7f6de7395e4b1ddc072"},
+    {file = "marshmallow_dataclass-8.7.1.tar.gz", hash = "sha256:4fb80e1bf7b31ce1b192aa87ffadee2cedb3f6f37bb0042f8500b07e6fad59c4"},
 ]
 
 [package.dependencies]
-marshmallow = [
-    {version = ">=3.13.0,<4.0"},
-    {version = ">=3.18.0,<4.0", optional = true, markers = "python_version >= \"3.7\" and extra == \"enum\""},
-]
-typeguard = {version = ">=2.4.1,<4.0.0", optional = true, markers = "extra == \"union\""}
-typing-extensions = {version = ">=4.2.0", markers = "python_version < \"3.11\" and python_version >= \"3.7\""}
-typing-inspect = ">=0.8.0,<1.0"
+marshmallow = ">=3.18.0"
+typeguard = ">=4.0,<5"
+typing-extensions = {version = ">=4.2.0", markers = "python_version < \"3.11\""}
+typing-inspect = ">=0.9.0"
 
 [package.extras]
-dev = ["marshmallow (>=3.18.0,<4.0) ; python_version >= \"3.7\"", "marshmallow-enum ; python_version < \"3.7\"", "pre-commit (>=2.17,<3.0)", "pytest (>=5.4)", "pytest-mypy-plugins (>=1.2.0) ; implementation_name != \"pypy\"", "sphinx", "typeguard (>=2.4.1,<4.0.0)"]
+dev = ["pre-commit (>=2.17,<3.0)", "pytest (>=5.4)", "pytest-mypy-plugins (>=1.2.0) ; implementation_name != \"pypy\"", "sphinx"]
 docs = ["sphinx"]
-enum = ["marshmallow (>=3.18.0,<4.0) ; python_version >= \"3.7\"", "marshmallow-enum ; python_version < \"3.7\""]
 lint = ["pre-commit (>=2.17,<3.0)"]
 tests = ["pytest (>=5.4)", "pytest-mypy-plugins (>=1.2.0) ; implementation_name != \"pypy\""]
-union = ["typeguard (>=2.4.1,<4.0.0)"]
 
 [[package]]
 name = "mypy-extensions"
@@ -595,22 +590,18 @@ requests = ">=1.1.0"
 
 [[package]]
 name = "typeguard"
-version = "3.0.2"
+version = "4.6.0"
 description = "Run-time type checker for Python"
 optional = false
-python-versions = ">=3.7.4"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "typeguard-3.0.2-py3-none-any.whl", hash = "sha256:bbe993854385284ab42fd5bd3bee6f6556577ce8b50696d6cb956d704f286c8e"},
-    {file = "typeguard-3.0.2.tar.gz", hash = "sha256:fee5297fdb28f8e9efcb8142b5ee219e02375509cd77ea9d270b5af826358d5a"},
+    {file = "typeguard-4.6.0-py3-none-any.whl", hash = "sha256:79878165bb86f2cf5d41d159a0ff1792a796cf496882d2fe1b1c6c7049b9cdd7"},
+    {file = "typeguard-4.6.0.tar.gz", hash = "sha256:e7414f09111317de3e335de92cd397c5c0ca00b1cc1676de12e1d444a79b3f21"},
 ]
 
 [package.dependencies]
-typing-extensions = {version = ">=4.4.0", markers = "python_version < \"3.11\""}
-
-[package.extras]
-doc = ["packaging", "sphinx-autodoc-typehints (>=1.2.0)", "sphinx-rtd-theme"]
-test = ["mypy (>=0.991) ; platform_python_implementation != \"PyPy\"", "pytest (>=7)"]
+typing_extensions = ">=4.14.0"
 
 [[package]]
 name = "typing-extensions"
@@ -661,4 +652,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "63d196ade8ee06b94bebbd16c70ec874587cd49c2b3cc20b5f23cfe20260f4c9"
+content-hash = "b0e5248c010fd03332a4a7d5ab521dea25b64f8ab8a985b6ac5b2733f27db8ac"
