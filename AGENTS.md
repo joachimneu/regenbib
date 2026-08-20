@@ -1,59 +1,49 @@
 # AGENTS.md
 
-This file provides guidance to AI agents when working with code in this repository.
+Guidance for AI agents working in this repository.
 
-## Project Overview
+## Overview
 
-regenbib is a Python CLI tool that (re-)generates tidy `.bib` files from online metadata sources (DBLP, arXiv, IACR ePrint, DOI). Users maintain a YAML file (`references.yaml`) with references to online sources, and regenbib fetches authoritative metadata to produce consistent BibTeX output.
+regenbib (re-)generates tidy `.bib` files from online metadata sources (DBLP, arXiv, IACR ePrint, DOI). Users maintain a `references.yaml` with pointers to online sources; regenbib fetches authoritative metadata and renders consistent BibTeX.
 
-## Build & Development Commands
+Three entry points:
+
+- `regenbib` — render `.bib` from YAML (`regenbib.cli_render:run`)
+- `regenbib-import` — pull cited keys from a LaTeX `.aux` file and interactively look them up (`regenbib.cli_import:run`)
+- `regenbib-scrub` — sort, dedup, freeze/unfreeze arXiv versions, clear cache (`regenbib.cli_scrub:run`)
+
+## Development
+
+Everything runs through [uv](https://docs.astral.sh/uv/); the build backend is `uv_build`. Source lives in `src/regenbib/`, so the test suite exercises the installed package rather than the working tree.
 
 ```bash
-poetry install          # Install dependencies
-poetry build            # Build package (wheel + sdist)
-poetry publish          # Publish to PyPI
+uv sync --group dev     # create .venv with runtime + dev dependencies
+uv run pytest           # test
+uv run ruff check .     # lint
+uv build                # build sdist + wheel
 ```
 
-There are three CLI entry points:
-- `regenbib` — Main command: renders `.bib` from YAML (`regenbib.cli_render:run`)
-- `regenbib-import` — Parses LaTeX `.aux` files, searches online sources, adds entries to YAML (`regenbib.cli_import:run`)
-- `regenbib-scrub` — Sorts, deduplicates entries, or clears cache (`regenbib.cli_scrub:run`)
-
-There is no test suite or CI pipeline.
+CI (`.github/workflows/ci.yml`) runs lint, the test matrix on Python 3.10–3.14, and a build job that checks wheel metadata and smoke-tests the console scripts.
 
 ## Architecture
 
-All source code lives in `regenbib/` (4 files, ~800 lines total):
+- `store.py` — data models (`RawBibtexEntry`, `DblpEntry`, `ArxivEntry`, `EprintEntry`, `DoiEntry`, `Store`) serialized to/from YAML via marshmallow-dataclass; the `_lookup_*` metadata fetchers, disk-cached under `~/.cache/regenbib/` (~24h TTL); `LookupConfig` for per-source delays and User-Agent headers.
+- `cli_render.py` — loads YAML, renders each entry via `render_pybtex_entry()`, applies optional hooks from `regenbib.cfg.py`, writes BibTeX or BibLaTeX.
+- `cli_import.py` — parses `.aux` files (BibTeX and BibLaTeX citation macros), searches DBLP, prompts the user to add entries to the YAML.
+- `cli_scrub.py` — the `sort`, `dedup`, `freeze-arxiv`, `unfreeze-arxiv`, and `rmcache` subcommands.
 
-- **`store.py`** — Core module. Contains all data models (`RawBibtexEntry`, `DblpEntry`, `ArxivEntry`, `EprintEntry`, `DoiEntry`, `Store`) as `@dataclass` classes with `marshmallow-dataclass` for YAML serialization. Also contains all metadata lookup functions (`_lookup_dblp_by_dblpid`, `_lookup_arxiv_by_arxivid`, `_lookup_eprint_by_eprintid`, `_lookup_doi_by_doi`) which use `diskcache` for persistent caching (~24h TTL at `~/.cache/regenbib/`). The `LookupConfig` class manages per-source delays and User-Agent headers.
+## Testing Pitfalls
 
-- **`cli_render.py`** — Generates `.bib` output. Loads YAML, calls each entry's `render_pybtex_entry()`, applies optional hooks from `regenbib.cfg.py`, writes BibTeX or BibLaTeX output. Contains `MyBiblatexWriter` for BibLaTeX-specific formatting.
+- `store.py` builds its `diskcache.Cache` under `Path.home()` at import time. `tests/conftest.py` redirects `HOME` into a temporary directory *before* importing it; preserve that ordering.
+- An autouse fixture blocks all network transports, so unstubbed lookups fail loudly. Use the `stub_lookups` fixture.
+- `cli_scrub` binds `_lookup_arxiv_version_by_arxivid` via `from`-import, so it must be patched in both modules (`stub_lookups` does).
 
-- **`cli_import.py`** — Interactive import workflow. Parses `.aux` files (both BibTeX and BibLaTeX formats), searches DBLP, and prompts user to select/add entries to YAML.
+## Dependency Constraints
 
-- **`cli_scrub.py`** — Maintenance subcommands: `sort`, `dedup`, `rmcache`.
-
-## Key Patterns
-
-- Each entry type class has: `render_pybtex_entry()` for BibTeX generation, `from_manual()` classmethod for parsing user input, and `sortkey_*` properties for sorting.
-- Lookup functions are module-level with disk caching; they fetch BibTeX strings from external APIs/endpoints.
-- The ePrint lookup uses Sickle (OAI-PMH protocol) against `https://eprint.iacr.org/oai`.
-- arXiv lookup fetches from `https://arxiv.org/bibtex/{id}`.
-- Error handling uses `assert` for validation. The `--fail-to-pdb` flag drops into pdb on exceptions.
-
-## Dependencies
-
-Requires Python `>=3.10,<4.0`. Key libraries: `bibtex-dblp` (DBLP API), `Sickle` (OAI-PMH for ePrint), `requests` (all HTTP, including arXiv and DOI), `marshmallow-dataclass` (`>=8.7.1`, for YAML serialization), `diskcache` (persistent caching), `pybtex` (BibTeX processing), `PyYAML` (YAML I/O).
-
-Note that there is **no `arxiv` package dependency**: arXiv metadata is fetched with plain `requests` against `https://arxiv.org/bibtex/{id}`, so the `arxiv` library was declared but never imported and has been removed. `setuptools` was likewise removed — nothing in the tree or its dependencies imports `pkg_resources`. Conversely, `pybtex` and `PyYAML` are imported directly by `store.py` and are now declared directly rather than relied upon transitively (they used to arrive via `bibtex-dblp` -> `pybtex` -> `pyyaml`).
-
-`pyproject.toml` uses the PEP 621 `[project]` table (not the legacy `[tool.poetry]` layout), which requires `poetry-core>=2.0`.
-
-`marshmallow-dataclass` must stay at `>=8.7.0`. Earlier versions (including the `8.5.14` this project used to pin) declare `typeguard <4.0.0` under their `union` extra, and `typeguard` 3.x imports `ast.Str`, which was removed in Python 3.12 — so any older pin makes the tool unusable on Python 3.12+. The failure is easy to misdiagnose because it surfaces at *runtime*, not import time: `marshmallow_dataclass` imports `union_field` (the only `import typeguard` in its tree) lazily, so `regenbib --help` succeeds and the `ImportError` only fires when `Store.Schema()` is first built inside `Store.load()`. From `8.7.0` on, `typeguard >=4` is a core dependency and the `enum`/`union` extras no longer exist, so the extras must not be requested.
+- `marshmallow-dataclass` must stay `>=8.7.1`, requested without extras. Earlier versions pull typeguard 3.x, which cannot be imported on Python 3.12+ — and the failure surfaces only when `Store.Schema()` is first built (`--help` still works). `tests/test_serialization.py::TestUnionDiscrimination` guards this.
+- `Store.entries` is annotated `list[Union[...]]` and the annotation is consumed at runtime by marshmallow-dataclass; do not rewrite it as a PEP 604 union (ruff's `UP007` is ignored for this reason).
 
 ## Branch Workflow
 
 - `main` — production branch
-- `dev` — development branch
-- Feature branches are typically prefixed with `copilot/` or `dev-`
-- PRs merge into `dev` or `main`
+- `dev` — development branch; PRs merge into `dev` or `main`

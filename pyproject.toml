@@ -6,6 +6,7 @@ authors = [
     { name = "Joachim Neu", email = "jneu@stanford.edu" },
 ]
 license = "GPL-3.0-only"
+license-files = ["LICENSE"]
 readme = "README.md"
 keywords = ["latex", "bibtex", "biblatex"]
 requires-python = ">=3.10,<4.0"
@@ -19,19 +20,73 @@ dependencies = [
     "Sickle (>=0.7.0,<0.8.0)",
 ]
 
-
 [project.urls]
 homepage = "https://github.com/joachimneu/regenbib"
 repository = "https://github.com/joachimneu/regenbib"
 documentation = "https://github.com/joachimneu/regenbib"
-
 
 [project.scripts]
 regenbib = 'regenbib.cli_render:run'
 regenbib-import = 'regenbib.cli_import:run'
 regenbib-scrub = 'regenbib.cli_scrub:run'
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "ruff>=0.6",
+]
 
 [build-system]
-requires = ["poetry-core>=2.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+xfail_strict = true
+filterwarnings = [
+    "error",
+    # Sickle 0.7.0 (latest) contains an invalid escape sequence; Python 3.12+
+    # reports it as a SyntaxWarning, 3.10/3.11 as a DeprecationWarning.
+    "ignore::SyntaxWarning",
+    "ignore:invalid escape sequence:DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "F",    # pyflakes
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "SIM",  # simplify
+]
+ignore = [
+    "E501",   # no hard line-length enforcement
+    # `Store.entries` is annotated `list[Union[...]]`; the annotation is consumed
+    # at runtime by marshmallow-dataclass, which does not resolve PEP 604 unions.
+    "UP007",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/conftest.py" = ["E402"]  # HOME must be redirected before importing regenbib
+"tests/*" = ["UP031"]           # %-formatting keeps brace-heavy BibTeX templates readable
+
+[tool.coverage.run]
+source = ["regenbib"]
+branch = true
+
+[tool.coverage.report]
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "import pdb",
+]

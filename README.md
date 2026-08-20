@@ -32,8 +32,12 @@ See the usage example below for details.
 
 ## Installation
 
-If your LaTeX project already has a Python virtual environment, activate it.
-Otherwise, setup and activate a virtual environment like this:
+With [uv](https://docs.astral.sh/uv/), install `regenbib` as a standalone tool, isolated in its own environment and available on your `PATH`:
+```bash
+$ uv tool install git+https://github.com/joachimneu/regenbib.git
+```
+
+Alternatively, install it into a virtual environment. If your LaTeX project already has one, activate it; otherwise set one up like this:
 ```bash
 $ python -m venv venv
 $ echo "venv/" >> .gitignore
@@ -43,7 +47,8 @@ Then install `regenbib`:
 ```bash
 $ pip install git+https://github.com/joachimneu/regenbib.git
 ```
-You should now have the commands `regenbib` and `regenbib-import` available to you.
+
+Either way, you should now have the commands `regenbib`, `regenbib-import`, and `regenbib-scrub` available to you.
 
 
 ## Example Usage
@@ -105,7 +110,7 @@ $ cat references.bib
 
 ## Supported Entry Types & Online Metadata Sources
 
-See entry types in `regenbib/store.py`:
+See entry types in `src/regenbib/store.py`:
 * dblp
 * arXiv
 * IACR ePrint
