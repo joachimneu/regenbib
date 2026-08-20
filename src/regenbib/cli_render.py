@@ -1,14 +1,16 @@
 #! /usr/bin/env python3
 
-import sys
-import os
+import argparse
 import copy
 import hashlib
-import argparse
 import importlib.util
+import os
+import sys
+
 import bibtex_dblp.database
 from pybtex.database.output.bibtex import Writer
-from .store import Store, LookupConfig, set_lookup_config
+
+from .store import LookupConfig, Store, set_lookup_config
 
 
 def default_render_entry_hook(entry, entry_pybtex):
@@ -41,7 +43,7 @@ def load_cfgpy(cfgpy_filename):
 
     sys.dont_write_bytecode = original_dont_write_bytecode
 
-    for k in cfgpy_defaults.keys():
+    for k in cfgpy_defaults:
         cfgpy_dict[k] = getattr(cfgpy, k, cfgpy_defaults[k])
 
     return cfgpy_dict
@@ -49,7 +51,7 @@ def load_cfgpy(cfgpy_filename):
 
 class MyBiblatexWriter(Writer):
     def _write_rawlist(self, stream, type, value):
-        stream.write(u',\n    %s = {%s}' % (type, ', '.join(value)))
+        stream.write(',\n    {} = {{{}}}'.format(type, ', '.join(value)))
 
     def write_stream(self, bib_data, stream):
         self._write_preamble(stream, bib_data.preamble)
@@ -57,18 +59,18 @@ class MyBiblatexWriter(Writer):
         first = True
         for key, entry in bib_data.entries.items():
             if not first:
-                stream.write(u'\n')
+                stream.write('\n')
             first = False
 
-            stream.write(u'@%s' % entry.original_type)
-            stream.write(u'{%s' % key)
+            stream.write(f'@{entry.original_type}')
+            stream.write(f'{{{key}')
             for type, value in entry.rawlists.items():
                 self._write_rawlist(stream, type, value)
             for role, persons in entry.persons.items():
                 self._write_persons(stream, persons, role)
             for type, value in entry.fields.items():
                 self._write_field(stream, type, value)
-            stream.write(u'\n}\n')
+            stream.write('\n}\n')
 
 
 def run():
@@ -137,11 +139,11 @@ def run():
             new_entries = {}
 
             for (entry_contentid, entry, entry_pybtex) in entries:
-                if entry_contentid not in new_entries.keys():
+                if entry_contentid not in new_entries:
                     entry_pybtex.rawlists = getattr(entry_pybtex, 'rawlists', {})
                     entry_pybtex.rawlists['ids'] = entry_pybtex.rawlists.get('ids', [])
                     new_entries[entry_contentid] = (entry_contentid, entry, entry_pybtex)
-                
+
                 new_entries[entry_contentid][2].rawlists['ids'].append(entry.bibtexid)
 
             entries = list(new_entries.values())
@@ -159,18 +161,18 @@ def run():
                 while True:
                     cnt += 1
                     primary_bibtexid = 'reference_' + entry_contentid + '_' + str(cnt)
-                    if primary_bibtexid not in bib.entries.keys():
+                    if primary_bibtexid not in bib.entries:
                         break
                 bib.entries[primary_bibtexid] = entry_pybtex
             MyBiblatexWriter().write_file(bib, args.bib)
 
         else:
             # Bibtex rendering
-            for (entry_contentid, entry, entry_pybtex) in entries:
+            for (_entry_contentid, entry, entry_pybtex) in entries:
                 bib.entries[entry.bibtexid] = entry_pybtex
             bibtex_dblp.database.write_to_file(bib, args.bib)
 
-            
+
     except Exception:
         if args.fail_to_pdb:
             import pdb

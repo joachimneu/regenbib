@@ -1,13 +1,16 @@
 #! /usr/bin/env python3
 
 import argparse
-import re
 import copy
-from pybtex.errors import set_strict_mode
-import bibtex_dblp.dblp_data
-import bibtex_dblp.dblp_api
-import bibtex_dblp.io
+import functools
+import re
+
 import bibtex_dblp.database
+import bibtex_dblp.dblp_api
+import bibtex_dblp.dblp_data
+import bibtex_dblp.io
+from pybtex.errors import set_strict_mode
+
 from .store import Store
 
 
@@ -15,10 +18,10 @@ def format_dblp_publication(pub: bibtex_dblp.dblp_data.DblpPublication):
     authors = ", ".join([str(author) for author in pub.authors])
     book = ""
     if pub.venue:
-        book += pub.venue + (" ({})".format(pub.volume) if pub.volume else "")
+        book += pub.venue + (f" ({pub.volume})" if pub.volume else "")
     if pub.booktitle:
         book += pub.booktitle
-    return "{}:\n\t\t{} {} {} ({})\n\t\t{}  {}?view=bibtex".format(authors, pub.title, book, pub.year, pub.pages, pub.ee, pub.url)
+    return f"{authors}:\n\t\t{pub.title} {book} {pub.year} ({pub.pages})\n\t\t{pub.ee}  {pub.url}?view=bibtex"
 
 
 def search_key_on_dblp(search_query, max_search_results=5):
@@ -28,13 +31,12 @@ def search_key_on_dblp(search_query, max_search_results=5):
     if search_results.total_matches == 0:
         return ("not-found", None)
 
-    print("-----> The search returned {} matches:".format(search_results.total_matches))
+    print(f"-----> The search returned {search_results.total_matches} matches:")
     if search_results.total_matches > max_search_results:
-        print("-----> Displaying only the first {} matches.".format(max_search_results))
+        print(f"-----> Displaying only the first {max_search_results} matches.")
     for i in range(len(search_results.results)):
         result = search_results.results[i]
-        print("-----> ({})\t{}".format(i + 1,
-              format_dblp_publication(result.publication)))
+        print(f"-----> ({i + 1})\t{format_dblp_publication(result.publication)}")
 
     # Let user select correct publication
     select = bibtex_dblp.io.get_user_number(
@@ -194,7 +196,7 @@ def run():
         ]
 
         bibtexids_included = []
-        with open(args.aux, 'r') as infile:
+        with open(args.aux) as infile:
             for line in infile.readlines():
                 line = line.strip()
 
@@ -229,10 +231,10 @@ def run():
             print("Importing entry:", bibtexid)
 
             entry_old = None
-            if bibtexid in bibtex_entries.entries.keys():
+            if bibtexid in bibtex_entries.entries:
                 entry_old = bibtex_entries.entries[bibtexid]
             else:
-                for (tmp_entry_key, tmp_entry) in bibtex_entries.entries.items():
+                for tmp_entry in bibtex_entries.entries.values():
                     tmp_ids = tmp_entry.fields.get('ids', '')
                     if not tmp_ids:
                         tmp_ids = []
@@ -244,17 +246,17 @@ def run():
                         del entry_old.fields['ids']
                         break
 
+            methods = [(name, functools.partial(fun, bibtexid))
+                       for (name, fun) in METHODS_WITHOUT_OLDENTRY]
+
             if entry_old is None:
                 print("-> Not found in .bib file!")
-                entry = attempt_import([(lambda name, fun: (name, lambda: fun(bibtexid)))(name, fun)
-                                        for (name, fun) in METHODS_WITHOUT_OLDENTRY])
-
             else:
                 print("-> Current entry:", entry_old)
-                entry = attempt_import([(lambda name, fun: (name, lambda: fun(bibtexid)))(name, fun)
-                                        for (name, fun) in METHODS_WITHOUT_OLDENTRY]
-                                       + [(lambda name, fun: (name, lambda: fun(bibtexid, entry_old)))(name, fun)
-                                          for (name, fun) in METHODS_WITH_OLDENTRY])
+                methods += [(name, functools.partial(fun, bibtexid, entry_old))
+                            for (name, fun) in METHODS_WITH_OLDENTRY]
+
+            entry = attempt_import(methods)
 
             if entry is not None:
                 store.entries.append(entry)
@@ -262,7 +264,7 @@ def run():
 
             store.dump(args.yaml)
 
-            
+
     except Exception:
         if args.fail_to_pdb:
             import pdb

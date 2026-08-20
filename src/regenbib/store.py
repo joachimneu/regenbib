@@ -1,22 +1,22 @@
-import yaml
-from typing import Union
-from marshmallow_dataclass import dataclass
-import pybtex.database
-import pybtex.errors
-import bibtex_dblp.dblp_api
-import bibtex_dblp.database
-import requests
-from sickle import Sickle
 import hashlib
-from diskcache import Cache
-from pathlib import Path
-import os
 import importlib.metadata
 import math
-import time
+import os
 import re
+import time
 import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import Union
 
+import bibtex_dblp.database
+import bibtex_dblp.dblp_api
+import pybtex.database
+import pybtex.errors
+import requests
+import yaml
+from diskcache import Cache
+from marshmallow_dataclass import dataclass
+from sickle import Sickle
 
 REGENBIB_VERSION = importlib.metadata.version('regenbib')
 REGENBIB_VERSION_ID = hashlib.sha256(''.join(str(f.hash) for f in sorted(importlib.metadata.files("regenbib"))).encode('utf-8')).hexdigest()
@@ -41,7 +41,7 @@ def set_lookup_config(config):
 
 disk_cache_dir = os.path.join(str(Path.home()), '.cache', 'regenbib', REGENBIB_VERSION_ID)
 disk_cache = Cache(directory=disk_cache_dir)
-  
+
 @disk_cache.memoize(expire=60*60*24, tag='dblp')
 def _lookup_dblp_by_dblpid(dblpid):
     time.sleep(_lookup_config.delay_dblp)
@@ -73,54 +73,54 @@ def _lookup_arxiv_version_by_arxivid(arxivid):
     headers = {}
     if _lookup_config.user_agent_arxiv:
         headers['User-Agent'] = _lookup_config.user_agent_arxiv
-    
+
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         xml_content = response.text
-        
+
         root = ET.fromstring(xml_content)
         namespaces = {'atom': 'http://www.w3.org/2005/Atom'}
         entry = root.find('atom:entry/atom:id', namespaces)
         assert entry is not None and entry.text, f"Could not extract version from arXiv API response for {arxivid}"
-        
+
         match = re.search(r'v(\d+)$', entry.text).group(1)
         assert match, f"Could not extract version from arXiv API response for {arxivid}"
         return match
-        
+
     except requests.exceptions.RequestException as e:
         raise RuntimeError(f"Failed to fetch arXiv metadata for {arxivid} from {url}: {e}") from e
 
 @disk_cache.memoize(expire=60*60*24, tag='eprint')
 def _lookup_eprint_by_eprintid(eprintid):
     time.sleep(_lookup_config.delay_eprint)
-    
+
     oai_endpoint = 'https://eprint.iacr.org/oai'
     oai_identifier = f'oai:eprint.iacr.org:{eprintid}'
-    
+
     sickle_kwargs = {}
     if _lookup_config.user_agent_eprint:
         sickle_kwargs['headers'] = {'User-Agent': _lookup_config.user_agent_eprint}
-    
+
     sickle = Sickle(oai_endpoint, **sickle_kwargs)
-    
+
     record = sickle.GetRecord(identifier=oai_identifier, metadataPrefix='oai_dc')
-    
+
     metadata = record.metadata
-    
+
     creators = metadata.get('creator', [])
     assert creators, f"No authors found in OAI record for {eprintid}"
     authors = ' and '.join(creators)
-    
+
     titles = metadata.get('title', [])
     assert titles and titles[0], f"No title found in OAI record for {eprintid}"
     title = titles[0]
-    
+
     assert '/' in eprintid, f"Invalid ePrint ID format: {eprintid} (expected YEAR/NUMBER)"
     year = eprintid.split('/')[0]
     assert year.isdigit() and len(year) == 4, f"Invalid year in ePrint ID: {eprintid} (expected 4-digit year)"
     bibtex_key = f'cryptoeprint:{eprintid}'
-    
+
     bibtex = f"""
         @misc{{{bibtex_key},
             author = {{{authors}}},
@@ -130,7 +130,7 @@ def _lookup_eprint_by_eprintid(eprintid):
             url = {{https://eprint.iacr.org/{eprintid}}}
         }}
     """
-    
+
     return bibtex
 
 @disk_cache.memoize(expire=60*60*24, tag='doi')
@@ -226,29 +226,29 @@ class ArxivEntry:
         version = 'v' + self.version if self.version else ''
         qid = self.arxivid + version
         bibtex_string = _lookup_arxiv_by_arxivid(qid)
-        
+
         data = bibtex_dblp.database.parse_bibtex(bibtex_string)
         assert len(data.entries) == 1, f'Expected exactly one BibTeX entry from arXiv {qid}, got {len(data.entries)}'
         key = list(data.entries.keys())[0]
         entry = data.entries[key]
-        
+
         entry.key = self.bibtexid
-        
+
         eprint = entry.fields.get('eprint', '')
         assert eprint, f"arXiv backend returned empty eprint field for {qid}"
         assert not re.search(r'\.\d+v\d+$', eprint), f"arXiv backend returned version in eprint field: {eprint}"
         assert eprint == self.arxivid, f"arXiv backend returned eprint field {eprint} for {qid} but expected {self.arxivid}"
-        
+
         entry.fields['eprint'] = qid
-        
+
         primary_class = entry.fields.get('primaryclass', entry.fields.get('primaryClass', ''))
         entry.fields['_howpublished'] = f"arXiv:{qid}" + (f" [{primary_class}]" if primary_class else "")
-        
+
         entry.fields['_url'] = f"https://arxiv.org/abs/{qid}"
 
         assert entry.fields['url'] == f"https://arxiv.org/abs/{self.arxivid}"
         del entry.fields['url']
-        
+
         return entry
 
     @property
@@ -261,7 +261,7 @@ class ArxivEntry:
 
     @property
     def sortkey_contentid(self):
-        return (self.sortkey_source, "%sv%s" % (self.arxivid, self.version))
+        return (self.sortkey_source, f"{self.arxivid}v{self.version}")
 
 
 @dataclass
@@ -362,7 +362,7 @@ class Store:
 
     @classmethod
     def load(cls, filename):
-        with open(filename, 'r') as infile:
+        with open(filename) as infile:
             return Store.Schema().load(yaml.safe_load(infile.read()))
 
     @classmethod
@@ -385,10 +385,10 @@ class Store:
         entries_to_remove = []
 
         for (idx, entry) in enumerate(self.entries):
-            if entry.bibtexid not in entries.keys():
+            if entry.bibtexid not in entries:
                 entries[entry.bibtexid] = []
             entries[entry.bibtexid].append(idx)
-        
+
         for (bibtexid, idxs) in entries.items():
             if len(idxs) > 1:
                 print(f">>> Duplicate entry: {bibtexid} ({len(idxs)}x)")
