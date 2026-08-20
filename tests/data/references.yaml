@@ -1,0 +1,37 @@
+entries:
+- arxivid: '2102.07932'
+  bibtexid: fast-authenticated-bft
+  version: ''
+- arxivid: '1807.04938'
+  bibtexid: tendermint
+  version: '3'
+- bibtexid: pbft
+  dblpid: conf/osdi/CastroL99
+- bibtexid: dls
+  dblpid: journals/jacm/DworkLS88
+- bibtexid: hotstuff2
+  eprintid: 2023/397
+- bibtexid: gafni-losa
+  rawbibtex:
+  - '@inproceedings{gafni-losa,'
+  - '    author = "Gafni, Eli and Losa, Giuliano",'
+  - '    title = "Invited Paper: Time Is Not a Healer, but It Sure Makes Hindsight 20:20",'
+  - '    booktitle = "Stabilization, Safety, and Security of Distributed Systems (SSS)",'
+  - '    series = "Lecture Notes in Computer Science",'
+  - '    volume = "14310",'
+  - '    publisher = "Springer",'
+  - '    pages = "62--74",'
+  - '    year = "2023",'
+  - '    doi = "10.1007/978-3-031-44274-2_6"'
+  - '}'
+  - ''
+- bibtexid: naor-keidar
+  rawbibtex:
+  - '@inproceedings{naor-keidar,'
+  - '    author = "Naor, Oded and Baudet, Mathieu and Malkhi, Dahlia and Spiegelman, Alexander",'
+  - '    title = "Cogsworth: Byzantine View Synchronization",'
+  - '    year = "2021"'
+  - '}'
+  - ''
+- bibtexid: some-doi
+  doi: 10.1145/3719027.3765032
