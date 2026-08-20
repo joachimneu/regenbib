@@ -95,9 +95,9 @@ def _lookup_arxiv_version_by_arxivid(arxivid):
             f"Could not extract version from arXiv API response for {arxivid}"
         )
 
-        match = re.search(r"v(\d+)$", entry.text).group(1)
+        match = re.search(r"v(\d+)$", entry.text)
         assert match, f"Could not extract version from arXiv API response for {arxivid}"
-        return match
+        return match.group(1)
 
     except requests.exceptions.RequestException as e:
         raise RuntimeError(f"Failed to fetch arXiv metadata for {arxivid} from {url}: {e}") from e

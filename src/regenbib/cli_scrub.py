@@ -129,20 +129,20 @@ def run():
             entries_by_bibtexid = {entry.bibtexid: entry for entry in store.entries}
 
             if args.entries_bibtexids:
-                entry_ids_to_freeze = args.entries_bibtexids
+                entry_ids_to_unfreeze = args.entries_bibtexids
             else:
-                entry_ids_to_freeze = [
+                entry_ids_to_unfreeze = [
                     entry.bibtexid for entry in store.entries if isinstance(entry, ArxivEntry)
                 ]
 
-            for entry_id in entry_ids_to_freeze:
+            for entry_id in entry_ids_to_unfreeze:
                 assert entry_id in entries_by_bibtexid, f"Entry '{entry_id}' not found in store"
                 entry = entries_by_bibtexid[entry_id]
                 assert isinstance(entry, ArxivEntry), f"Entry '{entry_id}' is not an arXiv entry"
 
             modified = False
 
-            for entry_id in entry_ids_to_freeze:
+            for entry_id in entry_ids_to_unfreeze:
                 entry = entries_by_bibtexid[entry_id]
 
                 if not entry.version:

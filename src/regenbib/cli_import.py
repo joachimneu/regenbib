@@ -284,8 +284,6 @@ def run():
                 store.entries.append(entry)
                 store.dump(args.yaml)
 
-            store.dump(args.yaml)
-
     except Exception:
         if args.fail_to_pdb:
             import pdb
