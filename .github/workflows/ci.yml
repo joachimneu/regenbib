@@ -25,6 +25,9 @@ jobs:
       - name: Lint
         run: uv run --locked --group dev ruff check --output-format=github .
 
+      - name: Check formatting
+        run: uv run --locked --group dev ruff format --check .
+
       - name: Verify the lockfile is up to date
         run: uv lock --check
 

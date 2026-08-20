@@ -20,6 +20,7 @@ Everything runs through [uv](https://docs.astral.sh/uv/); the build backend is `
 uv sync --group dev     # create .venv with runtime + dev dependencies
 uv run pytest           # test
 uv run ruff check .     # lint
+uv run ruff format .    # format
 uv build                # build sdist + wheel
 ```
 

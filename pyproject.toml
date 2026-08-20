@@ -71,7 +71,7 @@ select = [
     "SIM",  # simplify
 ]
 ignore = [
-    "E501",   # no hard line-length enforcement
+    "E501",   # line length is handled by `ruff format`
     # `Store.entries` is annotated `list[Union[...]]`; the annotation is consumed
     # at runtime by marshmallow-dataclass, which does not resolve PEP 604 unions.
     "UP007",
