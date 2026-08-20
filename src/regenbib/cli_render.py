@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import os
 import sys
+from pathlib import Path
 
 import bibtex_dblp.database
 from pybtex.database.output.bibtex import Writer
@@ -233,7 +234,8 @@ def run():
             # Bibtex rendering
             for _entry_contentid, entry, entry_pybtex in entries:
                 bib.entries[entry.bibtexid] = entry_pybtex
-            bibtex_dblp.database.write_to_file(bib, args.bib)
+            # bibtex_dblp post-processes the written file via Path methods.
+            bibtex_dblp.database.write_to_file(bib, Path(args.bib))
 
     except Exception:
         if args.fail_to_pdb:

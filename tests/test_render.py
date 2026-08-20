@@ -3,6 +3,7 @@
 import textwrap
 
 import pytest
+import requests
 
 from regenbib.cli_render import default_render_entry_hook, load_cfgpy
 from regenbib.store import (
@@ -49,6 +50,22 @@ class TestDblpEntry:
         rendered = DblpEntry("my-key", "conf/osdi/CastroL99").render_pybtex_entry()
         assert stub_lookups["dblp"] == ["conf/osdi/CastroL99"]
         assert rendered.fields["title"] == "A Paper About conf/osdi/CastroL99"
+
+    def test_unstubbed_client_chain(self, monkeypatch):
+        """Drive the real bibtex_dblp get_bibtex/DblpSession code with HTTP faked
+        at the transport, so an upstream signature change fails here, not in production."""
+        from regenbib import store
+
+        class FakeResponse:
+            status_code = 200
+            content = b"@inproceedings{DBLP:conf/x/Sig1,\n  title = {T},\n  year = {2000}\n}\n"
+
+            def raise_for_status(self):
+                pass
+
+        monkeypatch.setattr(requests.Session, "request", lambda self, *a, **kw: FakeResponse())
+        result = store._lookup_dblp_by_dblpid("conf/x/Sig1")
+        assert "@inproceedings" in result
 
 
 class TestArxivEntry:

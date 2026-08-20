@@ -7,7 +7,7 @@ import sys
 import pytest
 
 from regenbib import cli_import, cli_render, cli_scrub
-from regenbib.store import ArxivEntry, DblpEntry, Store
+from regenbib.store import ArxivEntry, DblpEntry, RawBibtexEntry, Store
 
 
 @pytest.fixture
@@ -142,6 +142,59 @@ class TestRender:
         )
         with pytest.raises(AssertionError):
             cli_render.run()
+
+    @pytest.mark.parametrize("spelling", ["a_b", r"a\_b", r"a\\_b"])
+    def test_underscores_in_urls_normalize_to_single_escape(
+        self, workdir, monkeypatch, stub_lookups, spelling
+    ):
+        """Bare, escaped, and over-escaped underscores all render as exactly `\\_`
+        (bibtex_dblp collapses the backslash runs pybtex writes)."""
+        Store(
+            [RawBibtexEntry("k", ["@misc{k,", '  url = "https://x.org/%s"' % spelling, "}"])]
+        ).dump(str(workdir / "esc.yaml"))
+        out = workdir / "out.bib"
+        _argv(
+            monkeypatch,
+            "--yaml",
+            str(workdir / "esc.yaml"),
+            "--bib",
+            str(out),
+            "--cfgpy",
+            str(workdir / "absent.cfg.py"),
+        )
+        cli_render.run()
+        text = out.read_text()
+        assert r"https://x.org/a\_b" in text
+        assert r"a\\_b" not in text
+
+    def test_underscore_in_dblp_url_survives(self, workdir, monkeypatch):
+        """A DBLP-supplied URL with an underscore keeps it (escaped once) end to end."""
+        from regenbib import store
+
+        monkeypatch.setattr(
+            store,
+            "_lookup_dblp_by_dblpid",
+            lambda dblpid: (
+                "@inproceedings{DBLP:%s,\n"
+                "  title = {T},\n"
+                "  year = {2000},\n"
+                "  url = {https://doi.org/10.1145/foo_bar}\n"
+                "}\n" % dblpid
+            ),
+        )
+        Store([DblpEntry("k", "conf/x/Y99")]).dump(str(workdir / "one.yaml"))
+        out = workdir / "out.bib"
+        _argv(
+            monkeypatch,
+            "--yaml",
+            str(workdir / "one.yaml"),
+            "--bib",
+            str(out),
+            "--cfgpy",
+            str(workdir / "absent.cfg.py"),
+        )
+        cli_render.run()
+        assert r"https://doi.org/10.1145/foo\_bar" in out.read_text()
 
     def test_empty_yaml_produces_empty_bib(self, workdir, monkeypatch, stub_lookups):
         Store([]).dump(str(workdir / "empty.yaml"))

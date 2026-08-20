@@ -36,11 +36,24 @@ class LookupConfig:
 
 
 _lookup_config = LookupConfig()
+_dblp_session = None
 
 
 def set_lookup_config(config):
-    global _lookup_config
+    global _lookup_config, _dblp_session
     _lookup_config = config
+    _dblp_session = None
+
+
+def _get_dblp_session():
+    global _dblp_session
+    if _dblp_session is None:
+        # The delay sleeps below remain the primary pacing; the session's rate
+        # limiter (floored at one request per second) is a backstop.
+        _dblp_session = bibtex_dblp.dblp_api.DblpSession(
+            wait_time=max(_lookup_config.delay_dblp, 1)
+        )
+    return _dblp_session
 
 
 disk_cache_dir = os.path.join(str(Path.home()), ".cache", "regenbib", REGENBIB_VERSION_ID)
@@ -52,7 +65,7 @@ def _lookup_dblp_by_dblpid(dblpid):
     time.sleep(_lookup_config.delay_dblp)
 
     return bibtex_dblp.dblp_api.get_bibtex(
-        dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed
+        _get_dblp_session(), dblpid, bib_format=bibtex_dblp.dblp_api.BibFormat.condensed
     )
 
 

@@ -11,7 +11,7 @@ import bibtex_dblp.dblp_data
 import bibtex_dblp.io
 from pybtex.errors import set_strict_mode
 
-from .store import Store
+from .store import Store, _get_dblp_session
 
 
 def format_dblp_publication(pub: bibtex_dblp.dblp_data.DblpPublication):
@@ -26,7 +26,7 @@ def format_dblp_publication(pub: bibtex_dblp.dblp_data.DblpPublication):
 
 def search_key_on_dblp(search_query, max_search_results=5):
     search_results = bibtex_dblp.dblp_api.search_publication(
-        search_query, max_search_results=max_search_results
+        _get_dblp_session(), search_query, max_search_results=max_search_results
     )
 
     if search_results.total_matches == 0:
