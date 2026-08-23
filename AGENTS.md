@@ -6,10 +6,11 @@ Guidance for AI agents working in this repository.
 
 regenbib (re-)generates tidy `.bib` files from online metadata sources (DBLP, arXiv, IACR ePrint, DOI). Users maintain a `references.yaml` with pointers to online sources; regenbib fetches authoritative metadata and renders consistent BibTeX.
 
-Three entry points:
+Four entry points:
 
 - `regenbib` — render `.bib` from YAML (`regenbib.cli_render:run`)
 - `regenbib-import` — pull cited keys from a LaTeX `.aux` file and interactively look them up (`regenbib.cli_import:run`)
+- `regenbib-query` — one-shot, non-interactive queries (`missing`, `search-dblp`, `get-*`, `get-raw`) so an AI agent or script can drive the import loop and edit the YAML itself (`regenbib.cli_query:run`)
 - `regenbib-scrub` — sort, dedup, freeze/unfreeze arXiv versions, clear cache (`regenbib.cli_scrub:run`)
 
 ## Development
@@ -31,7 +32,10 @@ CI (`.github/workflows/ci.yml`) runs lint, the test matrix on Python 3.10–3.14
 - `store.py` — data models (`RawBibtexEntry`, `DblpEntry`, `ArxivEntry`, `EprintEntry`, `DoiEntry`, `Store`) serialized to/from YAML via marshmallow-dataclass; the `_lookup_*` metadata fetchers, disk-cached under `~/.cache/regenbib/` (~24h TTL); `LookupConfig` for per-source delays and User-Agent headers.
 - `cli_render.py` — loads YAML, renders each entry via `render_pybtex_entry()`, applies optional hooks from `regenbib.cfg.py`, writes BibTeX or BibLaTeX.
 - `cli_import.py` — parses `.aux` files (BibTeX and BibLaTeX citation macros), searches DBLP, prompts the user to add entries to the YAML.
+- `cli_query.py` — the non-interactive `missing`, `search-dblp`, and `get-dblp`/`get-arxiv`/`get-eprint`/`get-doi`/`get-raw` subcommands; each prints its answer (for `get-*`: the YAML entry plus a BibTeX preview) and exits.
 - `cli_scrub.py` — the `sort`, `dedup`, `freeze-arxiv`, `unfreeze-arxiv`, and `rmcache` subcommands.
+- `utils_args.py` — the `--delay-*`/`--user-agent-*` argparse options shared by `regenbib` and `regenbib-query`.
+- `utils_latex.py` — reads the surrounding LaTeX project's artifacts: cited keys from `.aux` files, old entries (including BibLaTeX `ids` aliases) from an existing `.bib`.
 
 ## Testing Pitfalls
 

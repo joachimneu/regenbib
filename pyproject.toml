@@ -1,6 +1,6 @@
 [project]
 name = "regenbib"
-version = "1.0.1"
+version = "1.1.0"
 description = "(Re-)generate tidy .bib files from online sources"
 authors = [
     { name = "Joachim Neu", email = "jneu@stanford.edu" },
@@ -28,6 +28,7 @@ documentation = "https://github.com/joachimneu/regenbib"
 [project.scripts]
 regenbib = 'regenbib.cli_render:run'
 regenbib-import = 'regenbib.cli_import:run'
+regenbib-query = 'regenbib.cli_query:run'
 regenbib-scrub = 'regenbib.cli_scrub:run'
 
 [dependency-groups]

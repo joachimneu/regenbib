@@ -82,6 +82,7 @@ jobs:
           VIRTUAL_ENV=/tmp/smoke uv pip install dist/*.whl
           /tmp/smoke/bin/regenbib --help
           /tmp/smoke/bin/regenbib-import --help
+          /tmp/smoke/bin/regenbib-query --help
           /tmp/smoke/bin/regenbib-scrub --help
 
       - uses: actions/upload-artifact@v4

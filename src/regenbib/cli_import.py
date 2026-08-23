@@ -1,9 +1,7 @@
 #! /usr/bin/env python3
 
 import argparse
-import copy
 import functools
-import re
 
 import bibtex_dblp.database
 import bibtex_dblp.dblp_api
@@ -12,6 +10,7 @@ import bibtex_dblp.io
 from pybtex.errors import set_strict_mode
 
 from .store import Store, _get_dblp_session
+from .utils_latex import cited_bibtexids, find_bib_entry
 
 
 def format_dblp_publication(pub: bibtex_dblp.dblp_data.DblpPublication):
@@ -214,27 +213,7 @@ def run():
             ("dblp-search-authorstitle", import_dblp_search_authortitle),
         ]
 
-        bibtexids_included = []
-        with open(args.aux) as infile:
-            for line in infile.readlines():
-                line = line.strip()
-
-                # BibLaTeX
-                matches = re.findall(r"\\abx@aux@cite\{0\}\{(.*?)\}", line)
-                assert len(matches) <= 1
-                if matches:
-                    m = matches[0]
-                    if m not in bibtexids_included:
-                        bibtexids_included.append(m)
-
-                # BibTeX
-                matches = re.findall(r"\\citation\{(.*?)\}", line)
-                assert len(matches) <= 1
-                if matches:
-                    for m in matches[0].split(","):
-                        m = m.strip()
-                        if m not in bibtexids_included:
-                            bibtexids_included.append(m)
+        bibtexids_included = cited_bibtexids(args.aux)
 
         store = Store.load_or_empty(args.yaml)
 
@@ -249,21 +228,7 @@ def run():
 
             print("Importing entry:", bibtexid)
 
-            entry_old = None
-            if bibtexid in bibtex_entries.entries:
-                entry_old = bibtex_entries.entries[bibtexid]
-            else:
-                for tmp_entry in bibtex_entries.entries.values():
-                    tmp_ids = tmp_entry.fields.get("ids", "")
-                    if not tmp_ids:
-                        tmp_ids = []
-                    else:
-                        tmp_ids = [tmp_id.strip() for tmp_id in tmp_ids.split(",")]
-                    if bibtexid in tmp_ids:
-                        entry_old = copy.deepcopy(tmp_entry)
-                        entry_old.key = bibtexid
-                        del entry_old.fields["ids"]
-                        break
+            entry_old = find_bib_entry(bibtex_entries, bibtexid)
 
             methods = [
                 (name, functools.partial(fun, bibtexid)) for (name, fun) in METHODS_WITHOUT_OLDENTRY

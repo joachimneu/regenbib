@@ -11,7 +11,8 @@ from pathlib import Path
 import bibtex_dblp.database
 from pybtex.database.output.bibtex import Writer
 
-from .store import LookupConfig, Store, set_lookup_config
+from .store import Store
+from .utils_args import add_lookup_config_args, set_lookup_config_from_args
 
 
 def default_render_entry_hook(entry, entry_pybtex):
@@ -109,55 +110,7 @@ def run():
         default=False,
         help="Identify and collapse identical entries (BibLaTeX only)",
     )
-    parser.add_argument(
-        "--delay-dblp",
-        metavar="SECONDS",
-        type=float,
-        default=0,
-        help="Delay in seconds before DBLP lookups (default: 0)",
-    )
-    parser.add_argument(
-        "--delay-arxiv",
-        metavar="SECONDS",
-        type=float,
-        default=0,
-        help="Delay in seconds before arXiv lookups (default: 0)",
-    )
-    parser.add_argument(
-        "--delay-eprint",
-        metavar="SECONDS",
-        type=float,
-        default=0,
-        help="Delay in seconds before ePrint lookups (default: 0)",
-    )
-    parser.add_argument(
-        "--delay-doi",
-        metavar="SECONDS",
-        type=float,
-        default=0,
-        help="Delay in seconds before DOI lookups (default: 0)",
-    )
-    parser.add_argument(
-        "--user-agent-arxiv",
-        metavar="USER_AGENT",
-        type=str,
-        default=None,
-        help="User agent string for arXiv lookups (default: requests library default)",
-    )
-    parser.add_argument(
-        "--user-agent-eprint",
-        metavar="USER_AGENT",
-        type=str,
-        default=None,
-        help="User agent string for ePrint lookups (default: requests library default)",
-    )
-    parser.add_argument(
-        "--user-agent-doi",
-        metavar="USER_AGENT",
-        type=str,
-        default=None,
-        help="User agent string for DOI lookups (default: requests library default)",
-    )
+    add_lookup_config_args(parser)
     parser.add_argument(
         "--fail-to-pdb",
         action="store_true",
@@ -168,20 +121,7 @@ def run():
 
     try:
         assert not args.biblatex_group or args.biblatex
-        assert args.delay_dblp >= 0, "DBLP delay must be non-negative"
-        assert args.delay_arxiv >= 0, "arXiv delay must be non-negative"
-        assert args.delay_eprint >= 0, "ePrint delay must be non-negative"
-        assert args.delay_doi >= 0, "DOI delay must be non-negative"
-
-        config = LookupConfig()
-        config.delay_dblp = args.delay_dblp
-        config.delay_arxiv = args.delay_arxiv
-        config.delay_eprint = args.delay_eprint
-        config.delay_doi = args.delay_doi
-        config.user_agent_arxiv = args.user_agent_arxiv
-        config.user_agent_eprint = args.user_agent_eprint
-        config.user_agent_doi = args.user_agent_doi
-        set_lookup_config(config)
+        set_lookup_config_from_args(args)
 
         store = Store.load_or_empty(args.yaml)
         bib = bibtex_dblp.database.parse_bibtex("")
